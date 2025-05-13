@@ -15,9 +15,10 @@ namespace udf {
 
   public:
     for_node(int lineno, cdk::expression_node *init,
-             cdk::expression_node *condition, cdk::expression_node *increment, cdk::basic_node *block) : 
-             cdk::basic_node(lineno), _init(init), _condition(condition), _increment(increment), _block(block) {
-    }
+            cdk::expression_node *condition, cdk::expression_node *increment,
+            cdk::basic_node *block)
+        : cdk::basic_node(lineno), _init(init), _condition(condition),
+          _increment(increment), _block(block) {}
 
     cdk::expression_node *init() { return _init; }
     cdk::expression_node *condition() { return _condition; }
@@ -25,8 +26,9 @@ namespace udf {
 
     cdk::basic_node *block() { return _block; }
 
-    void accept(basic_ast_visitor *sp, int level) { sp->do_for_node(this, level); }
-
+    void accept(basic_ast_visitor *sp, int level) {
+      sp->do_for_node(this, level);
+    }
   };
 
 } // udf

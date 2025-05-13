@@ -11,13 +11,13 @@ namespace udf {
     int _level;
 
   public:
-    break_node(int lineno, int level) : cdk::basic_node(lineno), _level(level) {
-    }
+    break_node(int lineno, int level) : cdk::basic_node(lineno), _level(level) {}
 
     int level() { return _level; }
 
-    void accept(basic_ast_visitor *sp, int level) { sp->do_break_node(this, level); }
-
+    void accept(basic_ast_visitor *sp, int level) {
+      sp->do_break_node(this, level);
+    }
   };
 
 } // udf
