@@ -169,7 +169,14 @@ void udf::xml_writer::do_tensor_node(udf::tensor_node *const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
-void udf::xml_writer::do_function_node(udf::function_node * const node, int lvl) {
+void udf::xml_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
+  // TODO: implement this
+  // openTag(node, lvl);
+  // node->statements()->accept(this, lvl + 4);
+  // closeTag(node, lvl);
+}
+
+void udf::xml_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
   // TODO: implement this
   // openTag(node, lvl);
   // node->statements()->accept(this, lvl + 4);

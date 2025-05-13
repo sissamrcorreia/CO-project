@@ -57,7 +57,7 @@
 %}
 %%
 
-program : tBEGIN stmts tEND { compiler->ast(new udf::function_node(LINE, $2)); }
+program : tBEGIN stmts tEND { compiler->ast(new udf::function_definition_node(LINE, $2)); }
         ;
 
 blk : '{' stmts '}'         { $$ = new udf::block_node(LINE, nullptr, $2); }

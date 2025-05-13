@@ -211,7 +211,11 @@ void udf::type_checker::do_assignment_node(cdk::assignment_node *const node, int
 
 //---------------------------------------------------------------------------
 
-void udf::type_checker::do_function_node(udf::function_node *const node, int lvl) {
+void udf::type_checker::do_function_declaration_node(udf::function_declaration_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_function_definition_node(udf::function_definition_node *const node, int lvl) {
   // TODO: implement this
 }
 
