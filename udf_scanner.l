@@ -22,11 +22,11 @@
 "=="                   return tEQ; 
 "!="                   return tNE; 
 
-"while"                return tWHILE; 
+"for"                  return tFOR; 
 "if"                   return tIF; 
 "else"                 return tELSE; 
-"print"                return tPRINT; 
-"read"                 return tREAD; 
+"write"                return tWRITE; 
+"input"                 return tINPUT; 
 "begin"                return tBEGIN; 
 "end"                  return tEND; 
 

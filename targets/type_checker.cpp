@@ -34,6 +34,54 @@ void udf::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
+void udf::type_checker::do_tensor_capacity_node(udf::tensor_capacity_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_tensor_rank_node(udf::tensor_rank_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_tensor_dim_node(udf::tensor_dim_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_tensor_dims_node(udf::tensor_dims_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_tensor_index_node(udf::tensor_index_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_tensor_reshape_node(udf::tensor_reshape_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_tensor_contract_node(udf::tensor_contract_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_tensor_node(udf::tensor_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_block_node(udf::block_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_continue_node(udf::continue_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::type_checker::do_break_node(udf::break_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
 void udf::type_checker::do_integer_node(cdk::integer_node *const node, int lvl) {
   ASSERT_UNSPEC;
   node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
@@ -42,6 +90,12 @@ void udf::type_checker::do_integer_node(cdk::integer_node *const node, int lvl) 
 void udf::type_checker::do_string_node(cdk::string_node *const node, int lvl) {
   ASSERT_UNSPEC;
   node->type(cdk::primitive_type::create(4, cdk::TYPE_STRING));
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_alloc_node(udf::alloc_node *const node, int lvl) {
+  // TODO: implement this
 }
 
 //---------------------------------------------------------------------------
@@ -157,21 +211,27 @@ void udf::type_checker::do_assignment_node(cdk::assignment_node *const node, int
 
 //---------------------------------------------------------------------------
 
-void udf::type_checker::do_program_node(udf::program_node *const node, int lvl) {
-  // EMPTY
+void udf::type_checker::do_function_node(udf::function_node *const node, int lvl) {
+  // TODO: implement this
 }
+
+void udf::type_checker::do_return_node(udf::return_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
 
 void udf::type_checker::do_evaluation_node(udf::evaluation_node *const node, int lvl) {
   node->argument()->accept(this, lvl + 2);
 }
 
-void udf::type_checker::do_print_node(udf::print_node *const node, int lvl) {
+void udf::type_checker::do_write_node(udf::write_node *const node, int lvl) {
   node->argument()->accept(this, lvl + 2);
 }
 
 //---------------------------------------------------------------------------
 
-void udf::type_checker::do_read_node(udf::read_node *const node, int lvl) {
+void udf::type_checker::do_input_node(udf::input_node *const node, int lvl) {
   try {
     node->argument()->accept(this, lvl);
   } catch (const std::string &id) {
@@ -181,8 +241,10 @@ void udf::type_checker::do_read_node(udf::read_node *const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
-void udf::type_checker::do_while_node(udf::while_node *const node, int lvl) {
+void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
+  node->init()->accept(this, lvl + 4);
   node->condition()->accept(this, lvl + 4);
+  node->increment()->accept(this, lvl + 4);
 }
 
 //---------------------------------------------------------------------------
@@ -193,4 +255,31 @@ void udf::type_checker::do_if_node(udf::if_node *const node, int lvl) {
 
 void udf::type_checker::do_if_else_node(udf::if_else_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_declaration_node(udf::declaration_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_function_call_node(udf::function_call_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_nullptr_node(udf::nullptr_node *const node, int lvl) {
+  // TODO: revisit this
+  ASSERT_UNSPEC;
+
+  node->type(cdk::reference_type::create(4, cdk::primitive_type::create(0, cdk::TYPE_UNSPEC)));
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_sizeof_node(udf::sizeof_node *const node, int lvl) {
+  // TODO: implement this
 }

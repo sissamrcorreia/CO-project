@@ -137,6 +137,47 @@ void udf::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
+void udf::postfix_writer::do_tensor_capacity_node(udf::tensor_capacity_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_tensor_rank_node(udf::tensor_rank_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_tensor_dim_node(udf::tensor_dim_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_tensor_dims_node(udf::tensor_dims_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_tensor_index_node(udf::tensor_index_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_tensor_reshape_node(udf::tensor_reshape_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_tensor_contract_node(udf::tensor_contract_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_tensor_node(udf::tensor_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_alloc_node(udf::alloc_node * const node, int lvl) {
+  // ASSERT_SAFE_EXPRESSIONS;
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
 void udf::postfix_writer::do_variable_node(cdk::variable_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   // simplified generation: all variables are global
@@ -169,32 +210,45 @@ void udf::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
 
 //---------------------------------------------------------------------------
 
-void udf::postfix_writer::do_program_node(udf::program_node * const node, int lvl) {
-  // Note that UDF doesn't have functions. Thus, it doesn't need
-  // a function node. However, it must start in the main function.
-  // The ProgramNode (representing the whole program) doubles as a
-  // main function node.
+void udf::postfix_writer::do_function_node(udf::function_node * const node, int lvl) {
+//   // Note that UDF doesn't have functions. Thus, it doesn't need
+//   // a function node. However, it must start in the main function.
+//   // The ProgramNode (representing the whole program) doubles as a
+//   // main function node.
 
-  // generate the main function (RTS mandates that its name be "_main")
-  _pf.TEXT();
-  _pf.ALIGN();
-  _pf.GLOBAL("_main", _pf.FUNC());
-  _pf.LABEL("_main");
-  _pf.ENTER(0);  // UDF doesn't implement local variables
+//   // generate the main function (RTS mandates that its name be "_main")
+//   _pf.TEXT();
+//   _pf.ALIGN();
+//   _pf.GLOBAL("_main", _pf.FUNC());
+//   _pf.LABEL("_main");
+//   _pf.ENTER(0);  // UDF doesn't implement local variables
 
-  node->statements()->accept(this, lvl);
+//   node->statements()->accept(this, lvl);
 
-  // end the main function
-  _pf.INT(0);
-  _pf.STFVAL32();
-  _pf.LEAVE();
-  _pf.RET();
+//   // end the main function
+//   _pf.INT(0);
+//   _pf.STFVAL32();
+//   _pf.LEAVE();
+//   _pf.RET();
 
-  // these are just a few library function imports
-  _pf.EXTERN("readi");
-  _pf.EXTERN("printi");
-  _pf.EXTERN("prints");
-  _pf.EXTERN("println");
+//   // these are just a few library function imports
+//   _pf.EXTERN("readi");
+//   _pf.EXTERN("printi");
+//   _pf.EXTERN("prints");
+//   _pf.EXTERN("println");
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl) {
+  // TODO: implement this
+  // ASSERT_SAFE_EXPRESSIONS;
+  // if (node->value() != nullptr) {
+  //   node->value()->accept(this, lvl);
+  //   _pf.STFVAL32();
+  // }
+  // _pf.LEAVE();
+  // _pf.RET();
 }
 
 //---------------------------------------------------------------------------
@@ -212,7 +266,7 @@ void udf::postfix_writer::do_evaluation_node(udf::evaluation_node * const node, 
   }
 }
 
-void udf::postfix_writer::do_print_node(udf::print_node * const node, int lvl) {
+void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->argument()->accept(this, lvl); // determine the value to print
   if (node->argument()->is_typed(cdk::TYPE_INT)) {
@@ -230,9 +284,9 @@ void udf::postfix_writer::do_print_node(udf::print_node * const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
-void udf::postfix_writer::do_read_node(udf::read_node * const node, int lvl) {
+void udf::postfix_writer::do_input_node(udf::input_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  _pf.CALL("readi");
+  _pf.CALL("inputi");
   _pf.LDFVAL32();
   node->argument()->accept(this, lvl);
   _pf.STINT();
@@ -240,13 +294,16 @@ void udf::postfix_writer::do_read_node(udf::read_node * const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
-void udf::postfix_writer::do_while_node(udf::while_node * const node, int lvl) {
+void udf::postfix_writer::do_for_node(udf::for_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  int lbl1, lbl2;
+  int lbl1, lbl2, lbl3;
+  node->init()->accept(this, lvl);
   _pf.LABEL(mklbl(lbl1 = ++_lbl));
   node->condition()->accept(this, lvl);
   _pf.JZ(mklbl(lbl2 = ++_lbl));
   node->block()->accept(this, lvl + 2);
+  _pf.LABEL(mklbl(lbl3 = ++_lbl));
+  node->increment()->accept(this, lvl);
   _pf.JMP(mklbl(lbl1));
   _pf.LABEL(mklbl(lbl2));
 }
@@ -274,4 +331,47 @@ void udf::postfix_writer::do_if_else_node(udf::if_else_node * const node, int lv
   _pf.LABEL(mklbl(lbl1));
   node->elseblock()->accept(this, lvl + 2);
   _pf.LABEL(mklbl(lbl1 = lbl2));
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_declaration_node(udf::declaration_node * const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_function_call_node(udf::function_call_node * const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {
+  _symtab.push();
+  node->declarations()->accept(this, lvl + 2);
+  node->instructions()->accept(this, lvl + 2);
+  _symtab.pop();
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_nullptr_node(udf::nullptr_node * const node, int lvl) {
+ // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_continue_node(udf::continue_node * const node, int lvl) {
+  // TODO: implement this
+}
+
+void udf::postfix_writer::do_break_node(udf::break_node * const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_sizeof_node(udf::sizeof_node * const node, int lvl) {
+  // TODO: implement this
 }

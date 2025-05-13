@@ -30,11 +30,12 @@
   cdk::sequence_node   *sequence;
   cdk::expression_node *expression; /* expression nodes */
   cdk::lvalue_node     *lvalue;
+  udf::block_node     *block;       /* block node */
 };
 
 %token <i> tINTEGER
 %token <s> tIDENTIFIER tSTRING
-%token tWHILE tIF tPRINT tREAD tBEGIN tEND
+%token tFOR tIF tWRITE tINPUT tBEGIN tEND
 
 %nonassoc tIFX
 %nonassoc tELSE
@@ -49,26 +50,32 @@
 %type <sequence> stmts
 %type <expression> expr
 %type <lvalue> lval
+%type <block> blk
 
 %{
 //-- The rules below will be included in yyparse, the main parsing function.
 %}
 %%
 
-program : tBEGIN stmts tEND { compiler->ast(new udf::program_node(LINE, $2)); }
+program : tBEGIN stmts tEND { compiler->ast(new udf::function_node(LINE, $2)); }
         ;
+
+blk : '{' stmts '}'         { $$ = new udf::block_node(LINE, nullptr, $2); }
+    | '{' '}'               { $$ = new udf::block_node(LINE, nullptr, nullptr); }
+    ;
+
 
 stmts : stmt       { $$ = new cdk::sequence_node(LINE, $1); }
       | stmts stmt { $$ = new cdk::sequence_node(LINE, $2, $1); }
       ;
 
-stmt : expr ';'                         { $$ = new udf::evaluation_node(LINE, $1); }
-     | tPRINT expr ';'                  { $$ = new udf::print_node(LINE, $2); }
-     | tREAD lval ';'                   { $$ = new udf::read_node(LINE, $2); }
-     | tWHILE '(' expr ')' stmt         { $$ = new udf::while_node(LINE, $3, $5); }
-     | tIF '(' expr ')' stmt %prec tIFX { $$ = new udf::if_node(LINE, $3, $5); }
-     | tIF '(' expr ')' stmt tELSE stmt { $$ = new udf::if_else_node(LINE, $3, $5, $7); }
-     | '{' stmts '}'                    { $$ = $2; }
+stmt : expr ';'                                   { $$ = new udf::evaluation_node(LINE, $1); }
+     | tWRITE expr ';'                            { $$ = new udf::write_node(LINE, $2); }
+     | tINPUT lval ';'                            { $$ = new udf::input_node(LINE, $2); }
+     | tFOR '(' expr ';' expr ';' expr ')' stmt   { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
+     | tIF '(' expr ')' stmt %prec tIFX      	{ $$ = new udf::if_node(LINE, $3, $5); }
+     | tIF '(' expr ')' stmt tELSE stmt           { $$ = new udf::if_else_node(LINE, $3, $5, $7); }
+     | blk                                        { $$ = $1; }
      ;
 
 expr : tINTEGER              { $$ = new cdk::integer_node(LINE, $1); }
