@@ -30,12 +30,14 @@
   cdk::sequence_node   *sequence;
   cdk::expression_node *expression; /* expression nodes */
   cdk::lvalue_node     *lvalue;
-  udf::block_node     *block;       /* block node */
+  udf::block_node      *block;      /* block node */
 };
 
 %token <i> tINTEGER
 %token <s> tIDENTIFIER tSTRING
-%token tFOR tIF tWRITE tINPUT tBEGIN tEND
+%token tPUBLIC tPRIVATE tFORWARD
+%token tFOR tIF tWRITE tWRITELN tINPUT tBEGIN tEND
+%token tBREAK tCONTINUE tRETURN
 
 %nonassoc tIFX
 %nonassoc tELSE
@@ -64,13 +66,15 @@ blk : '{' stmts '}'         { $$ = new udf::block_node(LINE, nullptr, $2); }
     | '{' '}'               { $$ = new udf::block_node(LINE, nullptr, nullptr); }
     ;
 
-
 stmts : stmt       { $$ = new cdk::sequence_node(LINE, $1); }
       | stmts stmt { $$ = new cdk::sequence_node(LINE, $2, $1); }
       ;
 
 stmt : expr ';'                                   { $$ = new udf::evaluation_node(LINE, $1); }
      | tWRITE expr ';'                            { $$ = new udf::write_node(LINE, $2); }
+     | tWRITELN expr ';'                          { $$ = new udf::write_node(LINE, $2); }
+     | tBREAK                                     { $$ = new udf::break_node(LINE);  }
+     | tCONTINUE                                  { $$ = new udf::continue_node(LINE); }
      | tINPUT lval ';'                            { $$ = new udf::input_node(LINE, $2); }
      | tFOR '(' expr ';' expr ';' expr ')' stmt   { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
      | tIF '(' expr ')' stmt %prec tIFX      	{ $$ = new udf::if_node(LINE, $3, $5); }
