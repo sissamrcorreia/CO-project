@@ -215,21 +215,22 @@ void udf::xml_writer::do_input_node(udf::input_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_for_node(udf::for_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  openTag(node, lvl);
-  openTag("init", lvl + 2);
-  node->init()->accept(this, lvl + 4);
-  closeTag("init", lvl + 2);
-  openTag("condition", lvl + 2);
-  node->condition()->accept(this, lvl + 4);
-  closeTag("condition", lvl + 2);
-  openTag("increment", lvl + 2);
-  node->increment()->accept(this, lvl + 4);
-  closeTag("increment", lvl + 2);
-  openTag("block", lvl + 2);
-  node->block()->accept(this, lvl + 4);
-  closeTag("block", lvl + 2);
-  closeTag(node, lvl);
+  // TODO: fix this
+  // ASSERT_SAFE_EXPRESSIONS;
+  // openTag(node, lvl);
+  // openTag("init", lvl + 2);
+  // node->init()->accept(this, lvl + 4);
+  // closeTag("init", lvl + 2);
+  // openTag("condition", lvl + 2);
+  // node->condition()->accept(this, lvl + 4);
+  // closeTag("condition", lvl + 2);
+  // openTag("increment", lvl + 2);
+  // node->increment()->accept(this, lvl + 4);
+  // closeTag("increment", lvl + 2);
+  // openTag("block", lvl + 2);
+  // node->block()->accept(this, lvl + 4);
+  // closeTag("block", lvl + 2);
+  // closeTag(node, lvl);
 }
 
 //---------------------------------------------------------------------------

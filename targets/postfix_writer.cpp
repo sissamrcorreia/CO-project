@@ -323,17 +323,18 @@ void udf::postfix_writer::do_input_node(udf::input_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_for_node(udf::for_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  int lbl1, lbl2, lbl3;
-  node->init()->accept(this, lvl);
-  _pf.LABEL(mklbl(lbl1 = ++_lbl));
-  node->condition()->accept(this, lvl);
-  _pf.JZ(mklbl(lbl2 = ++_lbl));
-  node->block()->accept(this, lvl + 2);
-  _pf.LABEL(mklbl(lbl3 = ++_lbl));
-  node->increment()->accept(this, lvl);
-  _pf.JMP(mklbl(lbl1));
-  _pf.LABEL(mklbl(lbl2));
+  // TODO: fix this
+  // ASSERT_SAFE_EXPRESSIONS;
+  // int lbl1, lbl2, lbl3;
+  // node->init()->accept(this, lvl);
+  // _pf.LABEL(mklbl(lbl1 = ++_lbl));
+  // node->condition()->accept(this, lvl);
+  // _pf.JZ(mklbl(lbl2 = ++_lbl));
+  // node->block()->accept(this, lvl + 2);
+  // _pf.LABEL(mklbl(lbl3 = ++_lbl));
+  // node->increment()->accept(this, lvl);
+  // _pf.JMP(mklbl(lbl1));
+  // _pf.LABEL(mklbl(lbl2));
 }
 
 //---------------------------------------------------------------------------

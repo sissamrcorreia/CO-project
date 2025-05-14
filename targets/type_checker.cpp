@@ -246,9 +246,10 @@ void udf::type_checker::do_input_node(udf::input_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
-  node->init()->accept(this, lvl + 4);
-  node->condition()->accept(this, lvl + 4);
-  node->increment()->accept(this, lvl + 4);
+  // TODO: fix this
+  // node->init()->accept(this, lvl + 4);
+  // node->condition()->accept(this, lvl + 4);
+  // node->increment()->accept(this, lvl + 4);
 }
 
 //---------------------------------------------------------------------------
