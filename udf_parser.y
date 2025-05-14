@@ -48,7 +48,7 @@
 %left '*' '/' '%'
 %nonassoc tUNARY
 
-%type <node> stmt program
+%type <node> stmt // program
 %type <sequence> stmts
 %type <expression> expr
 %type <lvalue> lval
@@ -59,8 +59,8 @@
 %}
 %%
 
-program : tBEGIN stmts tEND { compiler->ast(new udf::function_definition_node(LINE, $2)); }
-        ;
+// program : tBEGIN stmts tEND { compiler->ast(new udf::function_definition_node(LINE, $2)); }
+        // ;
 
 blk : '{' stmts '}'         { $$ = new udf::block_node(LINE, nullptr, $2); }
     | '{' '}'               { $$ = new udf::block_node(LINE, nullptr, nullptr); }

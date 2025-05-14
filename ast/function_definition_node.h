@@ -16,37 +16,36 @@ namespace udf {
   /**
    * Class for describing function definition nodes.
    */
-  class function_definition_node : public cdk::expression_node {
+  class function_definition_node : public cdk::typed_node {
+    int _qualifier;
+    std::string _identifier;
     cdk::sequence_node *_arguments;
     udf::block_node *_block;
-    bool _is_main;
 
   public:
-    function_definition_node(int lineno, cdk::sequence_node *arguments,
-                  std::shared_ptr<cdk::basic_type> return_type,
-                  udf::block_node *block, bool is_main = false)
-        : cdk::expression_node(lineno), _arguments(arguments), _block(block),
-          _is_main(is_main) {
-      std::vector<std::shared_ptr<cdk::basic_type>> arg_types;
-      for (size_t i = 0; i < arguments->size(); i++) {
-        arg_types.push_back(
-            dynamic_cast<cdk::typed_node *>(arguments->node(i))->type());
-      }
-
-      this->type(cdk::functional_type::create(arg_types, return_type));
+    // Constructor for function definitions without body (forward declarations)
+    function_definition_node(int lineno, int qualifier, const std::string &identifier, cdk::sequence_node *arguments,
+                             udf::block_node *block) :
+        cdk::typed_node(lineno), _qualifier(qualifier), _identifier(identifier), _arguments(arguments), _block(block) {
+      type(cdk::primitive_type::create(0, cdk::TYPE_VOID));
     }
 
-    function_definition_node(int lineno, cdk::sequence_node *arguments)
-        : cdk::expression_node(lineno), _arguments(arguments), _block(nullptr),
-          _is_main(true) {
-      this->type(cdk::functional_type::create(
-          cdk::primitive_type::create(4, cdk::TYPE_INT)));
+    // Constructor for function definitions with body
+    function_definition_node(int lineno, int qualifier, std::shared_ptr<cdk::basic_type> funType, const std::string &identifier,
+                             cdk::sequence_node *arguments, udf::block_node *block) :
+        cdk::typed_node(lineno), _qualifier(qualifier), _identifier(identifier), _arguments(arguments), _block(block) {
+      type(funType);
     }
 
-    cdk::sequence_node *arguments() { return _arguments; }
-    cdk::basic_node *block() { return _block; }
+    int qualifier() { return _qualifier; }
 
-    bool is_main() { return _is_main; }
+    const std::string& identifier() const { return _identifier; }
+
+    cdk::sequence_node* arguments() { return _arguments; }
+
+    cdk::typed_node* argument(size_t ax) { return dynamic_cast<cdk::typed_node*>(_arguments->node(ax)); }
+
+    udf::block_node* block() { return _block; }
 
     void accept(basic_ast_visitor *sp, int level) { sp->do_function_definition_node(this, level);}
   };

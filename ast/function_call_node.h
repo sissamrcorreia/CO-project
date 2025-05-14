@@ -14,12 +14,12 @@ namespace udf {
     cdk::sequence_node *_arguments;
 
   public:
-    // Constructor for function declarations without body (forward declarations)
+    // Constructor for function calls without body (forward declarations)
     function_call_node(int lineno, const std::string &identifier) :
         cdk::expression_node(lineno), _identifier(identifier), _arguments(new cdk::sequence_node(lineno)) {
     }
     
-    // Constructor for function declarations with body
+    // Constructor for function calls with body
     function_call_node(int lineno, const std::string &identifier, cdk::sequence_node *arguments) :
       cdk::expression_node(lineno), _identifier(identifier), _arguments(arguments) {
     }
