@@ -171,6 +171,13 @@ void udf::postfix_writer::do_tensor_node(udf::tensor_node *const node, int lvl) 
 
 //---------------------------------------------------------------------------
 
+void udf::postfix_writer::do_address_of_node(udf::address_of_node * const node, int lvl) {
+  // ASSERT_SAFE_EXPRESSIONS;
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
 void udf::postfix_writer::do_alloc_node(udf::alloc_node * const node, int lvl) {
   // ASSERT_SAFE_EXPRESSIONS;
   // TODO: implement this
@@ -277,6 +284,12 @@ void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl)
   // }
   // _pf.LEAVE();
   // _pf.RET();
+}
+
+//---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration_node * const node, int lvl) {
+  // TODO: implement this
 }
 
 //---------------------------------------------------------------------------

@@ -68,6 +68,12 @@ void udf::type_checker::do_tensor_node(udf::tensor_node *const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
+void udf::type_checker::do_address_of_node(udf::address_of_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
 void udf::type_checker::do_block_node(udf::block_node *const node, int lvl) {
   // TODO: implement this
 }
@@ -220,6 +226,12 @@ void udf::type_checker::do_function_definition_node(udf::function_definition_nod
 }
 
 void udf::type_checker::do_return_node(udf::return_node *const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_node *const node, int lvl) {
   // TODO: implement this
 }
 

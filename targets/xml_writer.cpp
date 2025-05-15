@@ -169,6 +169,12 @@ void udf::xml_writer::do_tensor_node(udf::tensor_node *const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
+void udf::xml_writer::do_address_of_node(udf::address_of_node * const node, int lvl) {
+  // TODO: implement this
+}
+
+//---------------------------------------------------------------------------
+
 void udf::xml_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
   // TODO: implement this
   // openTag(node, lvl);
@@ -202,6 +208,13 @@ void udf::xml_writer::do_write_node(udf::write_node * const node, int lvl) {
   node->argument()->accept(this, lvl + 2);
   closeTag(node, lvl);
 }
+
+//---------------------------------------------------------------------------
+
+void udf::xml_writer::do_variable_declaration_node(udf::variable_declaration_node * const node, int lvl) {
+  // TODO: implement this
+}
+
 
 //---------------------------------------------------------------------------
 
