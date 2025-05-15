@@ -4,28 +4,24 @@ namespace udf {
   
   /**
    * Class for describing tensor declaration nodes.
-   * Represents the creation of a tensor with specified dimensions (e.g.,
-   * `tensor<2,3> t`).
+   * Tensors can be written directly in programs. The format uses square bracket notation enclosing expressions (these expressions must be convertible to floating-point values).
+   * Examples:
+   * 2x2 Tensor: [[2,2], [2,3]]
+   * 2x2 Tensor with expressions: [[2+1, i], [f(1), 2]]
    */
   class tensor_node : public cdk::expression_node {
-    std::vector<cdk::expression_node *> _dimensions;
-    std::string _name;
-    bool _is_global;
+    std::vector<cdk::expression_node*> _dimensions;
+    cdk::expression_node *_initializer;
 
-  public:
-    tensor_node(int lineno, const std::string &name, bool is_global,
-                const std::vector<cdk::expression_node *> &dimensions)
-        : cdk::expression_node(lineno), _dimensions(dimensions), _name(name),
-          _is_global(is_global) {}
+    public:
+      tensor_node(int lineno, std::vector<cdk::expression_node*> *dimensions,
+                  cdk::expression_node *initializer)
+          : cdk::expression_node(lineno), _dimensions(*dimensions), _initializer(initializer) {}
 
-    const std::string &name() { return _name; }
-    bool is_global() { return _is_global; }
-    const std::vector<cdk::expression_node *> &dimensions() {
-      return _dimensions;
-    }
+      std::vector<cdk::expression_node*> *dimensions() { return &_dimensions; }
+      cdk::expression_node *initializer() { return _initializer; }
 
-    void accept(basic_ast_visitor *sp, int level) { sp->do_tensor_node(this, level); }
-
+      void accept(basic_ast_visitor *sp, int level) { sp->do_tensor_node(this, level); }
   };
 
 } // udf
