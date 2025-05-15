@@ -239,7 +239,7 @@ void udf::postfix_writer::do_function_declaration_node(udf::function_declaration
 //   _pf.RET();
 
 //   // these are just a few library function imports
-//   _pf.EXTERN("readi");
+//   _pf.EXTERN("inputi");
 //   _pf.EXTERN("printi");
 //   _pf.EXTERN("prints");
 //   _pf.EXTERN("println");
@@ -267,7 +267,7 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
 //   _pf.RET();
 
 //   // these are just a few library function imports
-//   _pf.EXTERN("readi");
+//   _pf.EXTERN("inputi");
 //   _pf.EXTERN("printi");
 //   _pf.EXTERN("prints");
 //   _pf.EXTERN("println");
