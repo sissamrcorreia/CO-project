@@ -50,7 +50,7 @@ void udf::postfix_writer::do_string_node(cdk::string_node * const node, int lvl)
 
   /* leave the address on the stack */
   _pf.TEXT(); // return to the TEXT segment
-  _pf.ADDR(mklbl(lbl1)); // the string to be writeed
+  _pf.ADDR(mklbl(lbl1)); // the string to be printed
 }
 
 //---------------------------------------------------------------------------
@@ -240,9 +240,9 @@ void udf::postfix_writer::do_function_declaration_node(udf::function_declaration
 
 //   // these are just a few library function imports
 //   _pf.EXTERN("inputi");
-//   _pf.EXTERN("writei");
-//   _pf.EXTERN("writes");
-//   _pf.EXTERN("writeln");
+//   _pf.EXTERN("printi");
+//   _pf.EXTERN("prints");
+//   _pf.EXTERN("println");
 }
 
 void udf::postfix_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
@@ -268,9 +268,9 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
 
 //   // these are just a few library function imports
 //   _pf.EXTERN("inputi");
-//   _pf.EXTERN("writei");
-//   _pf.EXTERN("writes");
-//   _pf.EXTERN("writeln");
+//   _pf.EXTERN("printi");
+//   _pf.EXTERN("prints");
+//   _pf.EXTERN("println");
 }
 
 //---------------------------------------------------------------------------
@@ -309,18 +309,18 @@ void udf::postfix_writer::do_evaluation_node(udf::evaluation_node * const node, 
 
 void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->argument()->accept(this, lvl); // determine the value to write
+  node->argument()->accept(this, lvl); // determine the value to print
   if (node->argument()->is_typed(cdk::TYPE_INT)) {
-    _pf.CALL("writei");
-    _pf.TRASH(4); // delete the writeed value
+    _pf.CALL("printi");
+    _pf.TRASH(4); // delete the printed value
   } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
-    _pf.CALL("writes");
-    _pf.TRASH(4); // delete the writeed value's address
+    _pf.CALL("prints");
+    _pf.TRASH(4); // delete the printed value's address
   } else {
     std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
     exit(1);
   }
-  _pf.CALL("writeln"); // write a newline
+  _pf.CALL("println"); // print a newline
 }
 
 //---------------------------------------------------------------------------
