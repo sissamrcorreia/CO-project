@@ -25,9 +25,7 @@ namespace udf {
     cdk::expression_node* step()      { return _step;        }
     cdk::basic_node* instruction()    { return _instruction; }
 
-    void accept(basic_ast_visitor *sp, int level) {
-      sp->do_for_node(this, level);
-    }
+    void accept(basic_ast_visitor *sp, int level) { sp->do_for_node(this, level); }
 
   };
 

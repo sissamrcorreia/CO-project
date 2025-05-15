@@ -6,6 +6,9 @@
 
 namespace udf {
 
+  /**
+   * Class for describing variable declaration nodes.
+   */
   class variable_declaration_node: public cdk::typed_node {
     int _qualifier;
     std::string _identifier;

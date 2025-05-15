@@ -7,7 +7,6 @@ namespace udf {
    * Represents the creation of a tensor with specified dimensions (e.g.,
    * `tensor<2,3> t`).
    */
-
   class tensor_node : public cdk::expression_node {
     std::vector<cdk::expression_node *> _dimensions;
     std::string _name;
@@ -25,9 +24,8 @@ namespace udf {
       return _dimensions;
     }
 
-    void accept(basic_ast_visitor *sp, int level) {
-      sp->do_tensor_node(this, level);
-    }
+    void accept(basic_ast_visitor *sp, int level) { sp->do_tensor_node(this, level); }
+
   };
 
 } // udf

@@ -16,9 +16,8 @@ namespace udf {
 
     cdk::expression_node *retval() { return _retval; }
 
-    void accept(basic_ast_visitor *sp, int level) {
-      sp->do_return_node(this, level);
-    }
+    void accept(basic_ast_visitor *sp, int level) { sp->do_return_node(this, level); }
+
   };
 
 } // udf

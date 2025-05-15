@@ -27,9 +27,8 @@ namespace udf {
     const std::string &identifier() { return _identifier; }
     cdk::expression_node *initializer() { return _initializer; }
 
-    void accept(basic_ast_visitor *sp, int level) {
-      sp->do_declaration_node(this, level);
-    }
+    void accept(basic_ast_visitor *sp, int level) { sp->do_declaration_node(this, level); }
+
   };
 
 } // udf

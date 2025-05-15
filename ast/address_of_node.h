@@ -5,6 +5,9 @@
 
 namespace udf {
 
+  /**
+   * Class for describing address-of nodes.
+   */
   class address_of_node: public cdk::expression_node {
     cdk::lvalue_node *_lvalue;
 
