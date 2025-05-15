@@ -5,7 +5,7 @@
 namespace udf {
 
   /**
-   * Class for describing input nodes.
+   * Class for describing read nodes.
    */
   class input_node : public cdk::basic_node {
     cdk::lvalue_node *_argument;
