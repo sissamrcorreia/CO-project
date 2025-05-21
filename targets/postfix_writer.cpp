@@ -308,29 +308,29 @@ void udf::postfix_writer::do_evaluation_node(udf::evaluation_node * const node, 
 }
 
 void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  node->argument()->accept(this, lvl); // determine the value to print
-  if (node->argument()->is_typed(cdk::TYPE_INT)) {
-    _pf.CALL("printi");
-    _pf.TRASH(4); // delete the printed value
-  } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
-    _pf.CALL("prints");
-    _pf.TRASH(4); // delete the printed value's address
-  } else {
-    std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
-    exit(1);
-  }
-  _pf.CALL("println"); // print a newline
+  // ASSERT_SAFE_EXPRESSIONS;
+  // node->argument()->accept(this, lvl); // determine the value to write
+  // if (node->argument()->is_typed(cdk::TYPE_INT)) {
+  //   _pf.CALL("writei");
+  //   _pf.TRASH(4); // delete the writeed value
+  // } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
+  //   _pf.CALL("writes");
+  //   _pf.TRASH(4); // delete the writeed value's address
+  // } else {
+  //   std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
+  //   exit(1);
+  // }
+  // _pf.CALL("writeln"); // write a newline
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_input_node(udf::input_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  _pf.CALL("inputi");
-  _pf.LDFVAL32();
-  node->argument()->accept(this, lvl);
-  _pf.STINT();
+  // ASSERT_SAFE_EXPRESSIONS;
+  // _pf.CALL("inputi");
+  // _pf.LDFVAL32();
+  // node->argument()->accept(this, lvl);
+  // _pf.STINT();
 }
 
 //---------------------------------------------------------------------------
@@ -373,12 +373,6 @@ void udf::postfix_writer::do_if_else_node(udf::if_else_node * const node, int lv
   _pf.LABEL(mklbl(lbl1));
   node->elseblock()->accept(this, lvl + 2);
   _pf.LABEL(mklbl(lbl1 = lbl2));
-}
-
-//---------------------------------------------------------------------------
-
-void udf::postfix_writer::do_declaration_node(udf::declaration_node * const node, int lvl) {
-  // TODO: implement this
 }
 
 //---------------------------------------------------------------------------

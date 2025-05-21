@@ -242,17 +242,17 @@ void udf::type_checker::do_evaluation_node(udf::evaluation_node *const node, int
 }
 
 void udf::type_checker::do_write_node(udf::write_node *const node, int lvl) {
-  node->argument()->accept(this, lvl + 2);
+  // node->argument()->accept(this, lvl + 2);
 }
 
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_input_node(udf::input_node *const node, int lvl) {
-  try {
-    node->argument()->accept(this, lvl);
-  } catch (const std::string &id) {
-    throw "undeclared variable '" + id + "'";
-  }
+  // try {
+  //   node->argument()->accept(this, lvl);
+  // } catch (const std::string &id) {
+  //   throw "undeclared variable '" + id + "'";
+  // }
 }
 
 //---------------------------------------------------------------------------
@@ -272,12 +272,6 @@ void udf::type_checker::do_if_node(udf::if_node *const node, int lvl) {
 
 void udf::type_checker::do_if_else_node(udf::if_else_node *const node, int lvl) {
   node->condition()->accept(this, lvl + 4);
-}
-
-//---------------------------------------------------------------------------
-
-void udf::type_checker::do_declaration_node(udf::declaration_node *const node, int lvl) {
-  // TODO: implement this
 }
 
 //---------------------------------------------------------------------------

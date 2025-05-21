@@ -203,10 +203,10 @@ void udf::xml_writer::do_return_node(udf::return_node * const node, int lvl) {
 }
 
 void udf::xml_writer::do_write_node(udf::write_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  openTag(node, lvl);
-  node->argument()->accept(this, lvl + 2);
-  closeTag(node, lvl);
+  // ASSERT_SAFE_EXPRESSIONS;
+  // openTag(node, lvl);
+  // node->argument()->accept(this, lvl + 2);
+  // closeTag(node, lvl);
 }
 
 //---------------------------------------------------------------------------
@@ -219,10 +219,10 @@ void udf::xml_writer::do_variable_declaration_node(udf::variable_declaration_nod
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_input_node(udf::input_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
-  openTag(node, lvl);
-  node->argument()->accept(this, lvl + 2);
-  closeTag(node, lvl);
+  // ASSERT_SAFE_EXPRESSIONS;
+  // openTag(node, lvl);
+  // node->argument()->accept(this, lvl + 2);
+  // closeTag(node, lvl);
 }
 
 //---------------------------------------------------------------------------
@@ -273,12 +273,6 @@ void udf::xml_writer::do_if_else_node(udf::if_else_node * const node, int lvl) {
   node->elseblock()->accept(this, lvl + 4);
   closeTag("else", lvl + 2);
   closeTag(node, lvl);
-}
-
-//---------------------------------------------------------------------------
-
-void udf::xml_writer::do_declaration_node(udf::declaration_node * const node, int lvl) {
-    // TODO: implement this
 }
 
 //---------------------------------------------------------------------------
