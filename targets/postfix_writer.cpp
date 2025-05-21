@@ -383,6 +383,9 @@ void udf::postfix_writer::do_function_call_node(udf::function_call_node * const 
 
 //---------------------------------------------------------------------------
 
+void udf::postfix_writer::do_index_node(udf::index_node * const node, int lvl) {
+  // TODO: implement this
+}
 void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {
   _symtab.push();
   node->declarations()->accept(this, lvl + 2);

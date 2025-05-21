@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cdk/ast/expression_node.h>
+#include <cdk/ast/sequence_node.h>
+
 namespace udf {
   
   /**
@@ -10,18 +13,16 @@ namespace udf {
    * 2x2 Tensor with expressions: [[2+1, i], [f(1), 2]]
    */
   class tensor_node : public cdk::expression_node {
-    std::vector<cdk::expression_node*> _dimensions;
-    cdk::expression_node *_initializer;
+    cdk::sequence_node *_elements;
 
-    public:
-      tensor_node(int lineno, std::vector<cdk::expression_node*> *dimensions,
-                  cdk::expression_node *initializer)
-          : cdk::expression_node(lineno), _dimensions(*dimensions), _initializer(initializer) {}
+  public:
+    tensor_node(int lineno, cdk::sequence_node *elements)
+      : cdk::expression_node(lineno), _elements(elements) {}
 
-      std::vector<cdk::expression_node*> *dimensions() { return &_dimensions; }
-      cdk::expression_node *initializer() { return _initializer; }
+    cdk::sequence_node *elements() { return _elements; }
 
-      void accept(basic_ast_visitor *sp, int level) { sp->do_tensor_node(this, level); }
+    void accept(basic_ast_visitor *sp, int level) { sp->do_tensor_node(this, level); }
+
   };
 
 } // udf

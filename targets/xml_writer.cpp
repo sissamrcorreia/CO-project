@@ -283,6 +283,10 @@ void udf::xml_writer::do_function_call_node(udf::function_call_node * const node
 
 //---------------------------------------------------------------------------
 
+void udf::xml_writer::do_index_node(udf::index_node * const node, int lvl) {
+  // TODO: implement this
+}
+
 void udf::xml_writer::do_block_node(udf::block_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);

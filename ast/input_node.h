@@ -13,7 +13,7 @@ namespace udf {
     input_node(int lineno) : cdk::expression_node(lineno) {}
 
     void accept(basic_ast_visitor *sp, int level) { sp->do_input_node(this, level); }
-
+  
   };
 
 } // udf

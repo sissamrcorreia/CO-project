@@ -38,16 +38,13 @@ namespace udf {
     }
 
     int qualifier() { return _qualifier; }
-
     const std::string& identifier() const { return _identifier; }
-
     cdk::sequence_node* arguments() { return _arguments; }
-
     cdk::typed_node* argument(size_t ax) { return dynamic_cast<cdk::typed_node*>(_arguments->node(ax)); }
-
     udf::block_node* block() { return _block; }
 
     void accept(basic_ast_visitor *sp, int level) { sp->do_function_definition_node(this, level);}
+  
   };
 
 } // udf

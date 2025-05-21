@@ -74,6 +74,10 @@ void udf::type_checker::do_address_of_node(udf::address_of_node *const node, int
 
 //---------------------------------------------------------------------------
 
+void udf::type_checker::do_index_node(udf::index_node * const node, int lvl) {
+  // TODO: implement this
+}
+
 void udf::type_checker::do_block_node(udf::block_node *const node, int lvl) {
   // TODO: implement this
 }

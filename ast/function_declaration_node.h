@@ -30,11 +30,8 @@ namespace udf {
     }
 
     int qualifier() { return _qualifier; }
-
     std::string& identifier() { return _identifier; }
-
     cdk::typed_node* argument(size_t ax) { return dynamic_cast<cdk::typed_node*>(_arguments->node(ax)); }
-
     cdk::sequence_node* arguments() { return _arguments;}
 
     void accept(basic_ast_visitor *sp, int level) { sp->do_function_declaration_node(this, level); }
