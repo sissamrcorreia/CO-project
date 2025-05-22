@@ -9,7 +9,8 @@ namespace udf {
    */
   class sizeof_node : public cdk::expression_node {
     cdk::expression_node *_argument;
-
+  
+  public:
     sizeof_node(int lineno, cdk::expression_node *argument)
         : cdk::expression_node(lineno), _argument(argument) {}
 

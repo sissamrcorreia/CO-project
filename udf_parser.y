@@ -30,14 +30,18 @@
   cdk::sequence_node   *sequence;
   cdk::expression_node *expression; /* expression nodes */
   cdk::lvalue_node     *lvalue;
+  
   udf::block_node      *block;      /* block node */
+  udf::tensor_node     *tensor;     /* tensor node */
+  std::vector<std::string> *ids;
 };
 
-%token <i> tINTEGER
+%token <i> tINTEGER tSIZEOF tNULLPTR
 %token <s> tIDENTIFIER tSTRING
 %token tPUBLIC tPRIVATE tFORWARD
 %token tFOR tIF tWRITE tWRITELN tINPUT tBEGIN tEND
 %token tBREAK tCONTINUE tRETURN
+%token tTYPE_STRING tTYPE_INT tTYPE_REAL
 
 %nonassoc tIFX
 %nonassoc tELSE
@@ -83,6 +87,7 @@ stmt : expr ';'                                   { $$ = new udf::evaluation_nod
 
 expr : tINTEGER              { $$ = new cdk::integer_node(LINE, $1); }
      | tSTRING               { $$ = new cdk::string_node(LINE, $1); }
+     | tNULLPTR              { $$ = new udf::nullptr_node(LINE); }
      | '-' expr %prec tUNARY { $$ = new cdk::unary_minus_node(LINE, $2); }
      | '+' expr %prec tUNARY { $$ = new cdk::unary_plus_node(LINE, $2); }
      | expr '+' expr         { $$ = new cdk::add_node(LINE, $1, $3); }
@@ -100,6 +105,7 @@ expr : tINTEGER              { $$ = new cdk::integer_node(LINE, $1); }
      | lval                  { $$ = new cdk::rvalue_node(LINE, $1); }
      | lval '=' expr         { $$ = new cdk::assignment_node(LINE, $1, $3); }
      | tINPUT                { $$ = new udf::input_node(LINE); }
+     | tSIZEOF '(' expr ')'   { $$ = new udf::sizeof_node(LINE, $3); }
      ;
 
 lval : tIDENTIFIER             { $$ = new cdk::variable_node(LINE, $1); }
