@@ -219,11 +219,40 @@ void udf::xml_writer::do_address_of_node(udf::address_of_node * const node, int 
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
-  // TODO: implement this
+  ASSERT_SAFE_EXPRESSIONS;
+  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='" << node->qualifier() << "'>" << std::endl;
+  openTag("return_type", lvl + 2);
+  if (node->type()) {
+    os() << std::string(lvl + 4, ' ') << "<type name='" << node->type()->name() << "'/>" << std::endl;
+  }
+  closeTag("return_type", lvl + 2);
+  openTag("arguments", lvl + 2);
+  if (node->arguments()) {
+    node->arguments()->accept(this, lvl + 4);
+  }
+  closeTag("arguments", lvl + 2);
+  closeTag(node, lvl);
 }
 
 void udf::xml_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
-  // TODO: implement this
+  ASSERT_SAFE_EXPRESSIONS;
+  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='" << node->qualifier() << "'>" << std::endl;
+  openTag("return_type", lvl + 2);
+  if (node->type()) {
+    os() << std::string(lvl + 4, ' ') << "<type name='" << node->type()->name() << "'/>" << std::endl;
+  }
+  closeTag("return_type", lvl + 2);
+  openTag("arguments", lvl + 2);
+  if (node->arguments()) {
+    node->arguments()->accept(this, lvl + 4);
+  }
+  closeTag("arguments", lvl + 2);
+  openTag("body", lvl + 2);
+  if (node->block()) {
+    node->block()->accept(this, lvl + 4);
+  }
+  closeTag("body", lvl + 2);
+  closeTag(node, lvl);
 }
 
 //---------------------------------------------------------------------------
