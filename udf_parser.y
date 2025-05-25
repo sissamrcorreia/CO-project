@@ -25,6 +25,7 @@
   //-- don't change *any* of these --- END!
 
   int                   i;          /* integer value */
+  double                d;          /* real value */
   std::string          *s;          /* symbol name or string literal */
   cdk::basic_node      *node;       /* node pointer */
   cdk::sequence_node   *sequence;
@@ -38,6 +39,7 @@
 
 %token <i> tINTEGER tSIZEOF tNULLPTR
 %token <s> tIDENTIFIER tSTRING
+%token <d> tREAL
 %token tPUBLIC tPRIVATE tFORWARD
 %token tFOR tIF tWRITE tWRITELN tINPUT tBEGIN tEND
 %token tBREAK tCONTINUE tRETURN
@@ -63,8 +65,10 @@
 %}
 %%
 
-// program : tBEGIN stmts tEND { compiler->ast(new udf::function_definition_node(LINE, $2)); }
-        // ;
+program : tBEGIN stmts tEND {
+  compiler->ast(new udf::function_definition_node(LINE, tPRIVATE, cdk::primitive_type::create(0, cdk::TYPE_VOID), "main", nullptr, new udf::block_node(LINE, nullptr, $2)));
+}
+        ;
 
 blk : '{' stmts '}'         { $$ = new udf::block_node(LINE, nullptr, $2); }
     | '{' '}'               { $$ = new udf::block_node(LINE, nullptr, nullptr); }
@@ -79,8 +83,8 @@ stmt : expr ';'                                   { $$ = new udf::evaluation_nod
      | tWRITELN exprs ';'                         { $$ = new udf::write_node(LINE, $2, true); }
      | tBREAK                                     { $$ = new udf::break_node(LINE);  }
      | tCONTINUE                                  { $$ = new udf::continue_node(LINE); }
-     //| tFOR '(' expr ';' expr ';' expr ')' stmt   { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
-     | tIF '(' expr ')' stmt %prec tIFX      	{ $$ = new udf::if_node(LINE, $3, $5); }
+     | tFOR '(' expr ';' expr ';' expr ')' stmt   { $$ = new udf::for_node(LINE, new cdk::sequence_node(LINE, $3), new cdk::sequence_node(LINE, $5), new cdk::sequence_node(LINE, $7), $9); }
+     | tIF '(' expr ')' stmt %prec tIFX           { $$ = new udf::if_node(LINE, $3, $5); }
      | tIF '(' expr ')' stmt tELSE stmt           { $$ = new udf::if_else_node(LINE, $3, $5, $7); }
      | blk                                        { $$ = $1; }
      ;
@@ -105,11 +109,12 @@ expr : tINTEGER              { $$ = new cdk::integer_node(LINE, $1); }
      | lval                  { $$ = new cdk::rvalue_node(LINE, $1); }
      | lval '=' expr         { $$ = new cdk::assignment_node(LINE, $1, $3); }
      | tINPUT                { $$ = new udf::input_node(LINE); }
-     | tSIZEOF '(' expr ')'   { $$ = new udf::sizeof_node(LINE, $3); }
+     | tSIZEOF '(' expr ')'  { $$ = new udf::sizeof_node(LINE, $3); }
      ;
 
 lval : tIDENTIFIER             { $$ = new cdk::variable_node(LINE, $1); }
      ;
+
 exprs : expr           { $$ = new cdk::sequence_node(LINE, $1); }
       | exprs ',' expr { $$ = new cdk::sequence_node(LINE, $3, $1); }
       ;
