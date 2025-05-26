@@ -50,6 +50,7 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "int"                    return tTYPE_INT;
 "real"                   return tTYPE_REAL;
 "string"                 return tTYPE_STRING;
+"tensor"                 return tTYPE_TENSOR;
 "nullptr"                return tNULLPTR;
 "sizeof"                 return tSIZEOF;
 
@@ -81,12 +82,18 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                 6 - Expression Operators                   ]==== */
   /* ====================================================================== */
 
-[\[\](),?]       return *yytext;
-[-+*/%~<>@?=]        return *yytext;
+[\[\](),?]             return *yytext;
+[-+*/%~<>@?=]          return *yytext;
 "=="                   return tEQ;
 "!="                   return tNE;
 "<="                   return tLE;
 ">="                   return tGE;
+"**"                   return tCONTRACT;
+".capacity"            return tCAPACITY;
+".dim"                 return tDIM;
+".dims"                return tDIMS;
+".rank"                return tRANK;
+".reshape"             return tRESHAPE;
 "input"                return tINPUT;
 
   /* ====================================================================== */
@@ -104,31 +111,44 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                   2.7.1 - Integers                         ]==== */
   /* ====================================================================== */
 
-"0x"                   yy_push_state(X_HEX_INT);
-
-<X_HEX_INT>[[:xdigit:]]+      { yylval.i = strtoul(yytext, NULL, 16); yy_pop_state(); return tINTEGER; }
-<X_HEX_INT>.|\n               std::cerr << "WARNING: line " << lineno() << ": bad hexadecimal data!" << std::endl; exit(1);
-
-{INT}                  yylval.i = strtoul(yytext, NULL, 10); return tINTEGER;
+"0x"[[:xdigit:]]+        { yylval.i = strtoul(yytext + 2, NULL, 16); return tINTEGER; }
+"0b"[01]+                { yylval.i = strtoul(yytext + 2, NULL, 2); return tINTEGER; }
+"0"[0-7]+                { yylval.i = strtoul(yytext, NULL, 8); return tINTEGER; }
+{INT}                    { yylval.i = strtoul(yytext, NULL, 10); return tINTEGER; }
 
   /* ====================================================================== */
   /* ====[                2.6 - Identifiers (names)                   ]==== */
   /* ====================================================================== */
 
-{IDENTIFIER}  yylval.s = new std::string(yytext); return tIDENTIFIER;
+{IDENTIFIER}             { yylval.s = new std::string(yytext); return tIDENTIFIER; }
 
-\'                     yy_push_state(X_STRING); yylval.s = new std::string("");
-<X_STRING>\'           yy_pop_state(); return tSTRING;
-<X_STRING>\\\'         *yylval.s += yytext + 1;
-<X_STRING>.            *yylval.s += yytext;
-<X_STRING>\n           yyerror("newline in string");
+  /* ====================================================================== */
+  /* ====[              2.7.3 - Cadeias de caracteres                 ]==== */
+  /* ====================================================================== */
 
-[0-9]+                 yylval.i = strtol(yytext, nullptr, 10); return tINTEGER;
+\"                       { yy_push_state(X_STRING); strlit.str(""); }
+<X_STRING>\"             { yy_pop_state(); yylval.s = new std::string(strlit.str()); return tSTRING; }
+<X_STRING>\\\\           { strlit << '\\'; }
+<X_STRING>\\\"           { strlit << '"'; }
+<X_STRING>\\\'           { strlit << '\''; }
+<X_STRING>\\n            { strlit << '\n'; }
+<X_STRING>\\t            { strlit << '\t'; }
+<X_STRING>\\[0-7]{1,3}   { 
+                           int val = strtoul(yytext + 1, NULL, 8);
+                           if (val > 255) yyerror("octal escape sequence out of range");
+                           strlit << (char)val; 
+                         }
+<X_STRING>\\x[0-9a-fA-F]{1,2} { 
+                           int val = strtoul(yytext + 2, NULL, 16);
+                           if (val > 255) yyerror("hexadecimal escape sequence out of range");
+                           strlit << (char)val; 
+                         }
+<X_STRING>\\.            { yyerror("unknown escape sequence"); }
+<X_STRING>\n             { yyerror("newline in string"); }
+<X_STRING>.              { strlit << yytext; }
 
-[-()<>=+*/%;{}.]       return *yytext;
+[ \t\n]+                 ; /* ignore whitespace */
 
-[ \t\n]+               ; /* ignore whitespace */
-
-.                      yyerror("Unknown character");
+.                        { yyerror("Unknown character"); }
 
 %%
