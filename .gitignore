@@ -3,3 +3,7 @@ udf_parser.tab.h
 udf_parser.tab.cpp
 udf
 *.o
+udf_parser.output
+udf_parser.tab.c
+.auto/all_nodes.h
+.auto/visitor_decls.h

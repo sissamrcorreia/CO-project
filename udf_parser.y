@@ -151,7 +151,7 @@ opt_instructions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
                  | instructions { $$ = $1; }
                  ;
 
-instruction : tIF '(' expression ')' instruction { $$ = new udf::if_node(LINE, $3, $5); }
+instruction : tIF '(' expression ')' instruction %prec tIF { $$ = new udf::if_node(LINE, $3, $5); }
             | tIF '(' expression ')' instruction tELSE instruction { $$ = new udf::if_else_node(LINE, $3, $5, $7); }
             | tFOR '(' opt_expressions ';' opt_expressions ';' opt_expressions ')' instruction { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
             | expression ';' { $$ = new udf::evaluation_node(LINE, $1); }
@@ -236,7 +236,6 @@ opt_expressions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
 tensor_elements : expression { $$ = new cdk::sequence_node(LINE, $1); }
                 //| '[' tensor_elements ']' { $$ = $2; }
                 | tensor_elements ',' expression { $$ = new cdk::sequence_node(LINE, $3, $1); }
-                //| tensor_elements ',' '[' tensor_elements ']' { $$ = new cdk::sequence_node(LINE, new udf::tensor_node(LINE, $4), $1); }
                 ;
 
 // opt_tensor_elements : /* empty */ { $$ = new cdk::sequence_node(LINE); }
