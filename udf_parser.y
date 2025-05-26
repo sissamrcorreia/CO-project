@@ -103,10 +103,6 @@ opt_vardecs : /* empty */ { $$ = nullptr; }
             | vardecs { $$ = $1; }
             ;
 
-// identifiers : tIDENTIFIER { $$ = new std::vector<std::string>(); $$->push_back(*$1); delete $1; }
-//             | identifiers ',' tIDENTIFIER { $$ = $1; $$->push_back(*$3); delete $3; }
-//             ;
-
 data_type : tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_STRING); }
           | tTYPE_INT { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT); }
           | tTYPE_REAL { $$ = cdk::primitive_type::create(8, cdk::TYPE_DOUBLE); }
@@ -233,9 +229,13 @@ opt_expressions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
 //        | string tSTRING { $$ = $1; $$->append(*$2); delete $2; }
 //        ;
 
-tensor_elements : expression { $$ = new cdk::sequence_node(LINE, $1); }
-                //| '[' tensor_elements ']' { $$ = $2; }
-                | tensor_elements ',' expression { $$ = new cdk::sequence_node(LINE, $3, $1); }
+// tensor_elements : // expression { $$ = new cdk::sequence_node(LINE, $1); }
+//                 //| '[' tensor_elements ']' { $$ = $2; }
+//                 tensor_elements ',' expression { $$ = new cdk::sequence_node(LINE, $3, $1); }
+//                 // | tensor_elements ',' '[' tensor_elements ']' { $$ = new cdk::sequence_node(LINE, new udf::tensor_node(LINE, $4), $1); }
+//                 ;
+
+tensor_elements : expression ',' expressions { $$ = new cdk::sequence_node(LINE, $1, $3); }
                 ;
 
 // opt_tensor_elements : /* empty */ { $$ = new cdk::sequence_node(LINE); }
