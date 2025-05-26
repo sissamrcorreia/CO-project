@@ -47,9 +47,12 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                  1.1   - Null pointers                     ]==== */
   /* ====================================================================== */
 
+"auto"                   return tTYPE_AUTO;
 "int"                    return tTYPE_INT;
 "real"                   return tTYPE_REAL;
 "string"                 return tTYPE_STRING;
+"ptr"                    return tTYPE_POINTER;
+
 "tensor"                 return tTYPE_TENSOR;
 "nullptr"                return tNULLPTR;
 "sizeof"                 return tSIZEOF;

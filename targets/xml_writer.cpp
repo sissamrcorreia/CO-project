@@ -415,3 +415,5 @@ void udf::xml_writer::do_sizeof_node(udf::sizeof_node * const node, int lvl) {
   node->argument()->accept(this, lvl + 2);
   closeTag(node, lvl);
 }
+
+//---------------------------------------------------------------------------

@@ -45,20 +45,19 @@
 %token tWRITE tWRITELN tINPUT
 %token tBREAK tCONTINUE tRETURN
 %token tNULLPTR tSIZEOF
-%token tTYPE_STRING tTYPE_INT tTYPE_REAL tTYPE_AUTO tPROCEDURE tTYPE_TENSOR
+%token tTYPE_STRING tTYPE_INT tTYPE_REAL tTYPE_POINTER tTYPE_AUTO tVOID tTYPE_TENSOR
 %token tAND tOR tNE tLE tGE
 %token tCAPACITY tDIM tDIMS tCONTRACT tRANK tRESHAPE
 
-%type <node> instruction return
+%type <node> instruction return fundec fundef
 %type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements //opt_tensor_elements
-%type <expression> expression opt_initializer
+%type <expression> expression opt_initializer integer real
 %type <lvalue> lvalue
 %type <block> block
-%type <node> declaration vardec fundec fundef
-%type <sequence> declarations argdecs vardecs opt_vardecs
-//%type <s> string
+%type <node> declaration argdec vardec fordec
+%type <sequence> declarations argdecs vardecs opt_vardecs fordecs opt_forinit
+%type <s> string
 %type <type> data_type void_type
-//%type <ids> identifiers
 
 %nonassoc tIF
 %nonassoc tELSE
@@ -107,9 +106,11 @@ data_type : tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_STRING)
           | tTYPE_INT { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT); }
           | tTYPE_REAL { $$ = cdk::primitive_type::create(8, cdk::TYPE_DOUBLE); }
           | tTYPE_TENSOR { $$ = cdk::primitive_type::create(0, cdk::TYPE_TENSOR); }
+          | tTYPE_POINTER '<' data_type '>' { $$ = cdk::reference_type::create(4, $3); }
+          | tTYPE_POINTER '<' tTYPE_AUTO '>' { $$ = cdk::reference_type::create(4, nullptr); };
           ;
 
-void_type : tPROCEDURE { $$ = cdk::primitive_type::create(0, cdk::TYPE_VOID); }
+void_type : tVOID { $$ = cdk::primitive_type::create(0, cdk::TYPE_VOID); }
           ;
 
 opt_initializer : /* empty */ { $$ = nullptr; }
@@ -117,10 +118,12 @@ opt_initializer : /* empty */ { $$ = nullptr; }
                 ;
 
 fundec : data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, $1, *$2, $4); delete $2; }
+       | tFORWARD data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3;}
        | tPUBLIC data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3; }
        | tTYPE_AUTO tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, nullptr, *$2, $4); delete $2; }
        | tPUBLIC tTYPE_AUTO tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, nullptr, *$3, $5); delete $3; }
        | void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, $1, *$2, $4); delete $2; }
+       | tFORWARD void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3;}
        | tPUBLIC void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3; }
        ;
 
@@ -133,11 +136,27 @@ fundef : data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_de
        ;
 
 argdecs : /* empty */ { $$ = new cdk::sequence_node(LINE); }
+        | argdec { $$ = new cdk::sequence_node(LINE, $1); }
         | argdecs ',' data_type tIDENTIFIER { $$ = new cdk::sequence_node(LINE, new udf::variable_declaration_node(LINE, tPRIVATE, $3, *$4, nullptr), $1); delete $4; }
         ;
 
+argdec : data_type tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, nullptr); }
+       ;
+
 block : '{' opt_vardecs opt_instructions '}' { $$ = new udf::block_node(LINE, $2, $3); }
       ;
+      
+fordec : data_type tIDENTIFIER '=' expression { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, $4); }
+       ;
+
+fordecs : fordec { $$ = new cdk::sequence_node(LINE, $1); }
+        | fordecs ',' fordec { $$ = new cdk::sequence_node(LINE, $3, $1); }
+        ;
+
+opt_forinit: /* empty */ { $$ = new cdk::sequence_node(LINE, nullptr); }
+           | fordecs { $$ = $1; }
+           | expressions { $$ = (LINE, $1); }
+           ;
 
 instructions : instruction { $$ = new cdk::sequence_node(LINE, $1); }
              | instructions instruction { $$ = new cdk::sequence_node(LINE, $2, $1); }
@@ -149,7 +168,7 @@ opt_instructions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
 
 instruction : tIF '(' expression ')' instruction %prec tIF { $$ = new udf::if_node(LINE, $3, $5); }
             | tIF '(' expression ')' instruction tELSE instruction { $$ = new udf::if_else_node(LINE, $3, $5, $7); }
-            | tFOR '(' opt_expressions ';' opt_expressions ';' opt_expressions ')' instruction { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
+            | tFOR '(' opt_forinit ';' opt_expressions ';' opt_expressions ')' instruction { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
             | expression ';' { $$ = new udf::evaluation_node(LINE, $1); }
             | tWRITE expressions ';' { $$ = new udf::write_node(LINE, $2, false); }
             | tWRITELN expressions ';' { $$ = new udf::write_node(LINE, $2, true); }
@@ -160,10 +179,12 @@ instruction : tIF '(' expression ')' instruction %prec tIF { $$ = new udf::if_no
             ;
 
 return : tRETURN ';' { $$ = new udf::return_node(LINE, nullptr); }
-       //| tRETURN expressions ';' { $$ = new udf::return_node(LINE, new udf::tuple_node(LINE, $2)); }
+       | tRETURN expression ';' { $$ = new udf::return_node(LINE, $2); }
        ;
 
 lvalue : tIDENTIFIER { $$ = new cdk::variable_node(LINE, *$1); delete $1; }
+       // | tIDENTIFIER '@' tINTEGER {$$ = new udf::tuple_index_node(LINE, new cdk::rvalue_node(LINE, new cdk::variable_node(LINE, *$1)), $3); delete $1; }
+       // | tIDENTIFIER '@' tINTEGER { $$ = new cdk::indexed_variable_node(LINE, *$1, $3); delete $1; }
        | lvalue '[' expression ']' { $$ = new udf::index_node(LINE, new cdk::rvalue_node(LINE, $1), $3); }
        | '(' expression ')' '[' expression ']' { $$ = new udf::index_node(LINE, $2, $5); }
        | tIDENTIFIER '(' opt_expressions ')' '[' expression ']' { $$ = new udf::index_node(LINE, new udf::function_call_node(LINE, *$1, $3), $6); delete $1; }
@@ -171,9 +192,9 @@ lvalue : tIDENTIFIER { $$ = new cdk::variable_node(LINE, *$1); delete $1; }
        | '(' expression ')' '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, $2, $6); }
        ;
 
-expression : tINTEGER { $$ = new cdk::integer_node(LINE, $1); }
-           | tREAL { $$ = new cdk::double_node(LINE, $1); }
-           | tSTRING { $$ = new cdk::string_node(LINE, $1); }
+expression : integer { $$ = $1; }
+           | real { $$ = $1; }
+           | string { $$ = new cdk::string_node(LINE, $1); }
            | tNULLPTR { $$ = new udf::nullptr_node(LINE); }
            /* LEFT VALUES */
            | lvalue { $$ = new cdk::rvalue_node(LINE, $1); }
@@ -225,9 +246,15 @@ opt_expressions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
                 | expressions { $$ = $1; }
                 ;
 
-// string : tSTRING { $$ = $1; }
-//        | string tSTRING { $$ = $1; $$->append(*$2); delete $2; }
-//        ;
+integer : tINTEGER { $$ = new cdk::integer_node(LINE, $1); }
+        ;
+
+real : tREAL { $$ = new cdk::double_node(LINE, $1); }
+     ;
+
+string : tSTRING { $$ = $1; }
+       | string tSTRING { $$ = $1; $$->append(*$2); delete $2; }
+       ;
 
 // tensor_elements : // expression { $$ = new cdk::sequence_node(LINE, $1); }
 //                 //| '[' tensor_elements ']' { $$ = $2; }
