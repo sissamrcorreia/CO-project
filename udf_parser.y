@@ -46,13 +46,13 @@
 %token tFOR tIF tELSE
 %token tWRITE tWRITELN tINPUT
 %token tBREAK tCONTINUE tRETURN
-%token tNULLPTR tSIZEOF
+%token tNULLPTR tSIZEOF tOBJECTS
 %token tTYPE_STRING tTYPE_INT tTYPE_REAL tTYPE_POINTER tTYPE_AUTO tVOID tTYPE_TENSOR
 %token tAND tOR tNE tLE tGE
 %token tCAPACITY tDIM tDIMS tCONTRACT tRANK tRESHAPE
 
 %type <node> instruction return fundec fundef
-%type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements //opt_tensor_elements
+%type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements tensor_dimensions //opt_tensor_elements
 %type <expression> expression opt_initializer integer real
 %type <lvalue> lvalue
 %type <block> block
@@ -93,7 +93,10 @@ declaration : vardec ';' { $$ = $1; }
             ;
 
 vardec : tPUBLIC data_type tIDENTIFIER opt_initializer { $$ = new udf::variable_declaration_node(LINE, tPUBLIC, $2, *$3, $4); delete $3; }
+       | tFORWARD data_type tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPUBLIC, $2, *$3, nullptr); delete $3; }
        | data_type tIDENTIFIER opt_initializer { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, $3); delete $2; }
+       | tPUBLIC tTYPE_AUTO tIDENTIFIER '=' expression { $$ = new udf::variable_declaration_node(LINE, tPUBLIC, nullptr, *$3, $5); delete $3; }
+       | tTYPE_AUTO tIDENTIFIER '=' expression { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, nullptr, *$2, $4); delete $2; }
        ;
 
 vardecs : vardec ';' { $$ = new cdk::sequence_node(LINE, $1); }
@@ -107,10 +110,14 @@ opt_vardecs : /* empty */ { $$ = nullptr; }
 data_type : tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_STRING); }
           | tTYPE_INT { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT); }
           | tTYPE_REAL { $$ = cdk::primitive_type::create(8, cdk::TYPE_DOUBLE); }
-          | tTYPE_TENSOR { $$ = cdk::primitive_type::create(0, cdk::TYPE_TENSOR); }
+          | tTYPE_TENSOR '<' tensor_dimensions '>' { $$ = cdk::primitive_type::create(3, cdk::TYPE_TENSOR); } // TODO: Check
           | tTYPE_POINTER '<' data_type '>' { $$ = cdk::reference_type::create(4, $3); }
           | tTYPE_POINTER '<' tTYPE_AUTO '>' { $$ = cdk::reference_type::create(4, nullptr); };
           ;
+
+tensor_dimensions : tINTEGER { $$ = new cdk::sequence_node(LINE, new cdk::integer_node(LINE, $1)); }
+                  | tensor_dimensions ',' tINTEGER { $$ = new cdk::sequence_node(LINE, new cdk::integer_node(LINE, $3), $1); }
+                  ;
 
 void_type : tVOID { $$ = cdk::primitive_type::create(0, cdk::TYPE_VOID); }
           ;
@@ -185,8 +192,6 @@ return : tRETURN ';' { $$ = new udf::return_node(LINE, nullptr); }
        ;
 
 lvalue : tIDENTIFIER { $$ = new cdk::variable_node(LINE, *$1); delete $1; }
-       // | tIDENTIFIER '@' tINTEGER {$$ = new udf::tuple_index_node(LINE, new cdk::rvalue_node(LINE, new cdk::variable_node(LINE, *$1)), $3); delete $1; }
-       // | tIDENTIFIER '@' tINTEGER { $$ = new cdk::indexed_variable_node(LINE, *$1, $3); delete $1; }
        | lvalue '[' expression ']' { $$ = new udf::index_node(LINE, new cdk::rvalue_node(LINE, $1), $3); }
        | '(' expression ')' '[' expression ']' { $$ = new udf::index_node(LINE, $2, $5); }
        | tIDENTIFIER '(' opt_expressions ')' '[' expression ']' { $$ = new udf::index_node(LINE, new udf::function_call_node(LINE, *$1, $3), $6); delete $1; }
@@ -228,7 +233,7 @@ expression : integer { $$ = $1; }
            | tSIZEOF '(' expression ')' { $$ = new udf::sizeof_node(LINE, $3); }
            | tIDENTIFIER '(' opt_expressions ')' { $$ = new udf::function_call_node(LINE, *$1, $3); delete $1; }
            | '(' expression ')' { $$ = $2; }
-           | '[' expression ']' { $$ = new udf::alloc_node(LINE, $2); }
+           | tOBJECTS '(' integer ')' { $$ = new udf::alloc_node(LINE, $3); }
            | lvalue '?' { $$ = new udf::address_of_node(LINE, $1); }
            /* TENSOR QUERIES */
            | lvalue '.' tCAPACITY { $$ = new udf::tensor_capacity_node(LINE, new cdk::rvalue_node(LINE, $1)); }

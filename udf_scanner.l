@@ -47,15 +47,17 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                        Null pointers                       ]==== */
   /* ====================================================================== */
 
-"auto"                   return tTYPE_AUTO;
 "int"                    return tTYPE_INT;
 "real"                   return tTYPE_REAL;
 "string"                 return tTYPE_STRING;
-"ptr"                    return tTYPE_POINTER;
-
 "tensor"                 return tTYPE_TENSOR;
+"auto"                   return tTYPE_AUTO;
+"ptr"                    return tTYPE_POINTER;
+[<>]                     return *yytext;
+
 "nullptr"                return tNULLPTR;
 "sizeof"                 return tSIZEOF;
+"objects"                return tOBJECTS;
 
   /* ====================================================================== */
   /* ====[                     Global Symbols                         ]==== */
@@ -68,8 +70,8 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                     Conditional Statements                 ]==== */
   /* ====================================================================== */
 
-"if"                   return tIF;
-"else"                 return tELSE;
+"if"                     return tIF;
+"else"                   return tELSE;
 
   /* ====================================================================== */
   /* ====[                     Iteration Statements                   ]==== */
@@ -77,9 +79,9 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                     Continuation Statements                ]==== */
   /* ====================================================================== */
 
-"for"                   return tFOR;
-"break"                 return tBREAK;
-"continue"              return tCONTINUE;
+"for"                    return tFOR;
+"break"                  return tBREAK;
+"continue"               return tCONTINUE;
 
   /* ====================================================================== */
   /* ====[                     Expression Operators                   ]==== */
@@ -114,10 +116,19 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                     Integers                               ]==== */
   /* ====================================================================== */
 
-"0x"[[:xdigit:]]+        { yylval.i = strtoul(yytext + 2, NULL, 16); return tINTEGER; }
-"0b"[01]+                { yylval.i = strtoul(yytext + 2, NULL, 2); return tINTEGER; }
-"0"[0-7]+                { yylval.i = strtoul(yytext, NULL, 8); return tINTEGER; }
-{INT}                    { yylval.i = strtoul(yytext, NULL, 10); return tINTEGER; }
+"0x"                   yy_push_state(X_HEX_INT);
+
+<X_HEX_INT>[[:xdigit:]]+      { yylval.i = strtoul(yytext, NULL, 16); yy_pop_state(); return tINTEGER; }
+<X_HEX_INT>.|\n               std::cerr << "WARNING: line " << lineno() << ": bad hexadecimal data!" << std::endl; exit(1);
+
+{INT}                  yylval.i = strtoul(yytext, NULL, 10); return tINTEGER;
+
+  /* ====================================================================== */
+  /* ====[                     Reais                                  ]==== */
+  /* ====================================================================== */
+
+
+([0-9]*\.[0-9]+|[0-9]+\.[0-9]*)([eE][-+]?[0-9]+)? { yylval.d = strtod(yytext, NULL); return tREAL; }
 
   /* ====================================================================== */
   /* ====[                     Identifiers (names)                    ]==== */
@@ -129,29 +140,32 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====[                     Strings                                ]==== */
   /* ====================================================================== */
 
-\"                       { yy_push_state(X_STRING); strlit.str(""); }
-<X_STRING>\"             { yy_pop_state(); yylval.s = new std::string(strlit.str()); return tSTRING; }
-<X_STRING>\\\\           { strlit << '\\'; }
-<X_STRING>\\\"           { strlit << '"'; }
-<X_STRING>\\\'           { strlit << '\''; }
-<X_STRING>\\n            { strlit << '\n'; }
-<X_STRING>\\t            { strlit << '\t'; }
-<X_STRING>\\[0-7]{1,3}   { 
-                           int val = strtoul(yytext + 1, NULL, 8);
-                           if (val > 255) yyerror("octal escape sequence out of range");
-                           strlit << (char)val; 
-                         }
-<X_STRING>\\x[0-9a-fA-F]{1,2} { 
-                           int val = strtoul(yytext + 2, NULL, 16);
-                           if (val > 255) yyerror("hexadecimal escape sequence out of range");
-                           strlit << (char)val; 
-                         }
-<X_STRING>\\.            { yyerror("unknown escape sequence"); }
-<X_STRING>\n             { yyerror("newline in string"); }
-<X_STRING>.              { strlit << yytext; }
+"\""                           yy_push_state(X_STRING);
+<X_STRING>\\                   yy_push_state(X_BACKSLASH);
+<X_STRING>"\""                 {
+                                 yylval.s = new std::string(strlit.str());
+                                 strlit.str("");
+                                 yy_pop_state();
+                                 return tSTRING;
+                               }
+<X_STRING>.                    strlit << *yytext;
 
-[ \t\n]+                 ; /* ignore whitespace */
+<X_BACKSLASH>n                 strlit << '\n'; yy_pop_state();
+<X_BACKSLASH>r                 strlit << '\r'; yy_pop_state();
+<X_BACKSLASH>t                 strlit << '\t'; yy_pop_state();
+<X_BACKSLASH>\\                strlit << '\\'; yy_pop_state();
 
-.                        { yyerror("Unknown character"); }
+<X_BACKSLASH>[[:xdigit:]]{1,2} {
+                                 strlit << (char)(unsigned char)strtoul(yytext, NULL, 16);
+                                 yy_pop_state();
+                               }
+<X_BACKSLASH>.                 strlit << *yytext; yy_pop_state();
+
+  /* ====================================================================== */
+  /* ====[                    (other characters)                      ]==== */
+  /* ====================================================================== */
+
+[[:space:]]         /* ignore remaining white space inside the program */
+.                      yyerror(yytext);    /* all other chars: error! */
 
 %%

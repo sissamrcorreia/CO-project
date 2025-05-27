@@ -7,3 +7,6 @@ udf_parser.output
 udf_parser.tab.c
 .auto/all_nodes.h
 .auto/visitor_decls.h
+
+*.udf
+*.asm
