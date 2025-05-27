@@ -1,7 +1,18 @@
 #include <string>
+#include <cdk/types/types.h>
 #include "targets/xml_writer.h"
 #include "targets/type_checker.h"
+#include "targets/symbol.h"
 #include ".auto/all_nodes.h"  // automatically generated
+#include "udf_parser.tab.h"
+
+static std::string qualifier_name(int qualifier) {
+  if (qualifier == tPUBLIC) return "public";
+  if (qualifier == tPRIVATE)
+    return "private";
+  else
+    return "unknown qualifier";
+}
 
 //---------------------------------------------------------------------------
 
@@ -57,10 +68,6 @@ void udf::xml_writer::do_unary_minus_node(cdk::unary_minus_node * const node, in
 }
 
 void udf::xml_writer::do_unary_plus_node(cdk::unary_plus_node * const node, int lvl) {
-  do_unary_operation(node, lvl);
-}
-
-void udf::xml_writer::do_alloc_node(udf::alloc_node * const node, int lvl) {
   do_unary_operation(node, lvl);
 }
 
@@ -170,6 +177,8 @@ void udf::xml_writer::do_tensor_dims_node(udf::tensor_dims_node *const node, int
 
 void udf::xml_writer::do_tensor_index_node(udf::tensor_index_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
+  os() << std::string(lvl, ' ') << "<" << node->label() << " position='" << node->position() << "'>" << std::endl;
+  
   openTag(node, lvl);
   openTag("base", lvl + 2);
   node->base()->accept(this, lvl + 4);
@@ -203,6 +212,8 @@ void udf::xml_writer::do_tensor_contract_node(udf::tensor_contract_node *const n
 void udf::xml_writer::do_tensor_node(udf::tensor_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   os() << std::string(lvl, ' ') << "<tensor_node size='" << node->elements()->size() << "'>" << std::endl;
+  
+  openTag(node, lvl);
   node->elements()->accept(this, lvl + 2);
   closeTag(node, lvl);
 }
@@ -220,7 +231,9 @@ void udf::xml_writer::do_address_of_node(udf::address_of_node * const node, int 
 
 void udf::xml_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='" << node->qualifier() << "'>" << std::endl;
+  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='"
+      << qualifier_name(node->qualifier()) << "' type='" << cdk::to_string(node->type()) << "'>" << std::endl;
+  
   openTag("return_type", lvl + 2);
   if (node->type()) {
     os() << std::string(lvl + 4, ' ') << "<type name='" << node->type()->name() << "'/>" << std::endl;
@@ -236,7 +249,9 @@ void udf::xml_writer::do_function_declaration_node(udf::function_declaration_nod
 
 void udf::xml_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='" << node->qualifier() << "'>" << std::endl;
+  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='"
+      << qualifier_name(node->qualifier()) << "' type='" << cdk::to_string(node->type()) << "'>" << std::endl;
+  
   openTag("return_type", lvl + 2);
   if (node->type()) {
     os() << std::string(lvl + 4, ' ') << "<type name='" << node->type()->name() << "'/>" << std::endl;
@@ -282,7 +297,11 @@ void udf::xml_writer::do_write_node(udf::write_node * const node, int lvl) {
 
 void udf::xml_writer::do_variable_declaration_node(udf::variable_declaration_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  os() << std::string(lvl, ' ') << "<variable_declaration_node name='" << node->identifier() << "' type='" << node->type()->name() << "'>" << std::endl;
+  reset_new_symbol();
+
+  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='"
+      << qualifier_name(node->qualifier()) << "' type='" << cdk::to_string(node->type()) << "'>" << std::endl;
+  
   if (node->initializer()) {
     openTag("initializer", lvl + 2);
     node->initializer()->accept(this, lvl + 4);
@@ -353,10 +372,11 @@ void udf::xml_writer::do_if_else_node(udf::if_else_node * const node, int lvl) {
 
 void udf::xml_writer::do_function_call_node(udf::function_call_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  os() << std::string(lvl, ' ') << "<function_call_node name='" << node->identifier() << "'>" << std::endl;
-  openTag("arguments", lvl + 2);
-  node->arguments()->accept(this, lvl + 4);
-  closeTag("arguments", lvl + 2);
+  os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "'>" << std::endl;
+  
+  openTag("arguments", lvl);
+  if (node->arguments()) node->arguments()->accept(this, lvl + 4);
+  closeTag("arguments", lvl);
   closeTag(node, lvl);
 }
 
@@ -376,12 +396,18 @@ void udf::xml_writer::do_index_node(udf::index_node * const node, int lvl) {
 void udf::xml_writer::do_block_node(udf::block_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);
-  openTag("declarations", lvl + 2);
-  node->declarations()->accept(this, lvl + 4);
-  closeTag("declarations", lvl + 2);
-  openTag("instructions", lvl + 2);
-  node->instructions()->accept(this, lvl + 4);
-  closeTag("instructions", lvl + 2);
+  openTag("declarations", lvl);
+  if (node->declarations()) { node->declarations()->accept(this, lvl + 4); }
+  closeTag("declarations", lvl);
+  openTag("instructions", lvl);
+  if (node->instructions()) { node->instructions()->accept(this, lvl + 4); }
+  closeTag("instructions", lvl);
+  closeTag(node, lvl);
+}
+
+void udf::xml_writer::do_alloc_node(udf::alloc_node * const node, int lvl) {
+  openTag(node, lvl);
+  node->argument()->accept(this, lvl + 2);
   closeTag(node, lvl);
 }
 
