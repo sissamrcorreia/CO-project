@@ -53,7 +53,7 @@
 
 %type <node> instruction return fundec fundef
 %type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements tensor_dimensions //opt_tensor_elements
-%type <expression> expression opt_initializer integer real
+%type <expression> expression opt_initializer integer real tensor
 %type <lvalue> lvalue
 %type <block> block
 %type <node> declaration argdec vardec fordec
@@ -110,7 +110,7 @@ opt_vardecs : /* empty */ { $$ = nullptr; }
 data_type : tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_STRING); }
           | tTYPE_INT { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT); }
           | tTYPE_REAL { $$ = cdk::primitive_type::create(8, cdk::TYPE_DOUBLE); }
-          | tTYPE_TENSOR '<' tensor_dimensions '>' { $$ = cdk::primitive_type::create(3, cdk::TYPE_TENSOR); } // TODO: Check
+          | tTYPE_TENSOR '<' tensor_dimensions '>' { $$ = cdk::primitive_type::create(0, cdk::TYPE_TENSOR); } // TODO: Check first argument (create)
           | tTYPE_POINTER '<' data_type '>' { $$ = cdk::reference_type::create(4, $3); }
           | tTYPE_POINTER '<' tTYPE_AUTO '>' { $$ = cdk::reference_type::create(4, nullptr); };
           ;
@@ -242,7 +242,7 @@ expression : integer { $$ = $1; }
            | lvalue '.' tRANK { $$ = new udf::tensor_rank_node(LINE, new cdk::rvalue_node(LINE, $1)); }
            | lvalue '.' tRESHAPE '(' opt_expressions ')' { $$ = new udf::tensor_reshape_node(LINE, new cdk::rvalue_node(LINE, $1), $5); }
            /* TENSOR LITERAL */
-           | '[' tensor_elements ']' { $$ = new udf::tensor_node(LINE, $2); }
+           | tensor { $$ = $1; }
            ;
 
 expressions : expression { $$ = new cdk::sequence_node(LINE, $1); }
@@ -263,13 +263,11 @@ string : tSTRING { $$ = $1; }
        | string tSTRING { $$ = $1; $$->append(*$2); delete $2; }
        ;
 
-// tensor_elements : // expression { $$ = new cdk::sequence_node(LINE, $1); }
-//                 //| '[' tensor_elements ']' { $$ = $2; }
-//                 tensor_elements ',' expression { $$ = new cdk::sequence_node(LINE, $3, $1); }
-//                 // | tensor_elements ',' '[' tensor_elements ']' { $$ = new cdk::sequence_node(LINE, new udf::tensor_node(LINE, $4), $1); }
-//                 ;
-
-tensor_elements : expression ',' expressions { $$ = new cdk::sequence_node(LINE, $1, $3); }
+tensor_elements : expression { $$ = new cdk::sequence_node(LINE, $1); }
+                | tensor_elements ',' expression { $$ = new cdk::sequence_node(LINE, $3, $1); }
                 ;
+
+tensor : '[' tensor_elements ']' { $$ = new udf::tensor_node(LINE, $2); }
+       ;
 
 %%
