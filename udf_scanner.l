@@ -34,7 +34,7 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 %%
 
   /* ====================================================================== */
-  /* ====[                      2.2 - COMMENTS                        ]==== */
+  /* ====[                       COMMENTS                             ]==== */
   /* ====================================================================== */
 
 "--".*$                /* match the whole line (it is ignored) */
@@ -43,8 +43,8 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 <X_COMMENT>.|"\n"      ;  /* ignore inside comments */
 
   /* ====================================================================== */
-  /* ====[                  1.1   - Data Types                        ]==== */
-  /* ====[                  1.1   - Null pointers                     ]==== */
+  /* ====[                        Data Types                          ]==== */
+  /* ====[                        Null pointers                       ]==== */
   /* ====================================================================== */
 
 "auto"                   return tTYPE_AUTO;
@@ -58,23 +58,23 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "sizeof"                 return tSIZEOF;
 
   /* ====================================================================== */
-  /* ====[                  3.4.2 - Global Symbols                    ]==== */
+  /* ====[                     Global Symbols                         ]==== */
   /* ====================================================================== */
 
 "public"                 return tPUBLIC;
 "forward"                return tFORWARD;
 
   /* ====================================================================== */
-  /* ====[                 5.5 - Conditional Statements               ]==== */
+  /* ====[                     Conditional Statements                 ]==== */
   /* ====================================================================== */
 
 "if"                   return tIF;
 "else"                 return tELSE;
 
   /* ====================================================================== */
-  /* ====[                 5.5 - Iteration Statements                 ]==== */
-  /* ====[                 5.5 - Termination Statements               ]==== */
-  /* ====[                 5.4 - Continuation Statements              ]==== */
+  /* ====[                     Iteration Statements                   ]==== */
+  /* ====[                     Termination Statements                 ]==== */
+  /* ====[                     Continuation Statements                ]==== */
   /* ====================================================================== */
 
 "for"                   return tFOR;
@@ -82,7 +82,7 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "continue"              return tCONTINUE;
 
   /* ====================================================================== */
-  /* ====[                 6 - Expression Operators                   ]==== */
+  /* ====[                     Expression Operators                   ]==== */
   /* ====================================================================== */
 
 [\[\](),?]             return *yytext;
@@ -100,9 +100,9 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "input"                return tINPUT;
 
   /* ====================================================================== */
-  /* ====[              3   - Delimiters and Separators               ]==== */
-  /* ====[              4.3 - Function Body                           ]==== */
-  /* ====[                 5.3 - Return Statement                     ]==== */
+  /* ====[                     Delimiters and Separators              ]==== */
+  /* ====[                     Function Body                          ]==== */
+  /* ====[                     Return Statement                       ]==== */
   /* ====================================================================== */
 
 [#\[\](){};:!,]                return *yytext;
@@ -111,7 +111,7 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "writeln"                      return tWRITELN;
 
   /* ====================================================================== */
-  /* ====[                   2.7.1 - Integers                         ]==== */
+  /* ====[                     Integers                               ]==== */
   /* ====================================================================== */
 
 "0x"[[:xdigit:]]+        { yylval.i = strtoul(yytext + 2, NULL, 16); return tINTEGER; }
@@ -120,13 +120,13 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 {INT}                    { yylval.i = strtoul(yytext, NULL, 10); return tINTEGER; }
 
   /* ====================================================================== */
-  /* ====[                2.6 - Identifiers (names)                   ]==== */
+  /* ====[                     Identifiers (names)                    ]==== */
   /* ====================================================================== */
 
 {IDENTIFIER}             { yylval.s = new std::string(yytext); return tIDENTIFIER; }
 
   /* ====================================================================== */
-  /* ====[              2.7.3 - Cadeias de caracteres                 ]==== */
+  /* ====[                     Strings                                ]==== */
   /* ====================================================================== */
 
 \"                       { yy_push_state(X_STRING); strlit.str(""); }

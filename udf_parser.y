@@ -10,6 +10,8 @@
 #define yylex()                      compiler->scanner()->scan()
 #define yyerror(compiler, s)         compiler->scanner()->error(s)
 //-- don't change *any* of these --- END!
+
+#define NIL (new cdk::nil_node(LINE))
 %}
 
 %parse-param {std::shared_ptr<cdk::compiler> compiler}
@@ -117,27 +119,27 @@ opt_initializer : /* empty */ { $$ = nullptr; }
                 | '=' expression { $$ = $2; }
                 ;
 
-fundec : data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, $1, *$2, $4); delete $2; }
-       | tFORWARD data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3;}
-       | tPUBLIC data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3; }
-       | tTYPE_AUTO tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, nullptr, *$2, $4); delete $2; }
-       | tPUBLIC tTYPE_AUTO tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, nullptr, *$3, $5); delete $3; }
-       | void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, $1, *$2, $4); delete $2; }
-       | tFORWARD void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3;}
-       | tPUBLIC void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3; }
+fundec : data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, $1, *$2, $4); }
+       | tFORWARD data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); }
+       | tPUBLIC data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); }
+       | tTYPE_AUTO tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, nullptr, *$2, $4); }
+       | tPUBLIC tTYPE_AUTO tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, nullptr, *$3, $5); }
+       | void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, $1, *$2, $4); }
+       | tFORWARD void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); }
+       | tPUBLIC void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); }
        ;
 
-fundef : data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPRIVATE, $1, *$2, $4, $6); delete $2; }
-       | tPUBLIC data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPUBLIC, $2, *$3, $5, $7); delete $3; }
-       | tTYPE_AUTO tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPRIVATE, nullptr, *$2, $4, $6); delete $2; }
-       | tPUBLIC tTYPE_AUTO tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPUBLIC, nullptr, *$3, $5, $7); delete $3; }
-       | void_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPRIVATE, $1, *$2, $4, $6); delete $2; }
-       | tPUBLIC void_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPUBLIC, $2, *$3, $5, $7); delete $3; }
+fundef : data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPRIVATE, $1, *$2, $4, $6); }
+       | tPUBLIC data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPUBLIC, $2, *$3, $5, $7); }
+       | tTYPE_AUTO tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPRIVATE, nullptr, *$2, $4, $6); }
+       | tPUBLIC tTYPE_AUTO tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPUBLIC, nullptr, *$3, $5, $7); }
+       | void_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPRIVATE, $1, *$2, $4, $6); }
+       | tPUBLIC void_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPUBLIC, $2, *$3, $5, $7); }
        ;
 
 argdecs : /* empty */ { $$ = new cdk::sequence_node(LINE); }
         | argdec { $$ = new cdk::sequence_node(LINE, $1); }
-        | argdecs ',' data_type tIDENTIFIER { $$ = new cdk::sequence_node(LINE, new udf::variable_declaration_node(LINE, tPRIVATE, $3, *$4, nullptr), $1); delete $4; }
+        | argdecs ',' argdec { $$ = new cdk::sequence_node(LINE, $3, $1); };
         ;
 
 argdec : data_type tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, nullptr); }
@@ -153,7 +155,7 @@ fordecs : fordec { $$ = new cdk::sequence_node(LINE, $1); }
         | fordecs ',' fordec { $$ = new cdk::sequence_node(LINE, $3, $1); }
         ;
 
-opt_forinit: /* empty */ { $$ = new cdk::sequence_node(LINE, nullptr); }
+opt_forinit: /* empty */ { $$ = new cdk::sequence_node(LINE, NIL); }
            | fordecs { $$ = $1; }
            | expressions { $$ = (LINE, $1); }
            ;
@@ -264,9 +266,5 @@ string : tSTRING { $$ = $1; }
 
 tensor_elements : expression ',' expressions { $$ = new cdk::sequence_node(LINE, $1, $3); }
                 ;
-
-// opt_tensor_elements : /* empty */ { $$ = new cdk::sequence_node(LINE); }
-//                     | tensor_elements { $$ = $1; }
-//                     ;
 
 %%
