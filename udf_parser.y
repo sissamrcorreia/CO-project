@@ -52,7 +52,7 @@
 %token tCAPACITY tDIM tDIMS tCONTRACT tRANK tRESHAPE
 
 %type <node> instruction return fundec fundef
-%type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements tensor_dimensions //opt_tensor_elements
+%type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements tensor_dimensions
 %type <expression> expression opt_initializer integer real tensor
 %type <lvalue> lvalue
 %type <block> block
