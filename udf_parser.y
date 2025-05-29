@@ -234,7 +234,7 @@ expression : integer { $$ = $1; }
            | tSIZEOF '(' expression ')' { $$ = new udf::sizeof_node(LINE, $3); }
            | tIDENTIFIER '(' opt_expressions ')' { $$ = new udf::function_call_node(LINE, *$1, $3); delete $1; }
            | '(' expression ')' { $$ = $2; }
-           | tOBJECTS '(' integer ')' { $$ = new udf::alloc_node(LINE, $3); }
+           | tOBJECTS '(' expression ')' { $$ = new udf::alloc_node(LINE, $3); }
            | lvalue '?' { $$ = new udf::address_of_node(LINE, $1); }
            /* TENSOR QUERIES */
            | lvalue '.' tCAPACITY { $$ = new udf::tensor_capacity_node(LINE, new cdk::rvalue_node(LINE, $1)); }
