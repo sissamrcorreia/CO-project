@@ -43,7 +43,7 @@
 %token <d> tREAL
 %token <s> tSTRING tIDENTIFIER
 %token tPUBLIC tPRIVATE tFORWARD
-%token tFOR tIF tELSE
+%token tFOR tIF tELSE tELIF
 %token tWRITE tWRITELN tINPUT
 %token tBREAK tCONTINUE tRETURN
 %token tNULLPTR tSIZEOF tOBJECTS
@@ -62,7 +62,7 @@
 %type <type> data_type void_type
 
 %nonassoc tIF
-%nonassoc tELSE
+%nonassoc tELSE tELIF
 
 %right '='
 %left tOR
@@ -145,7 +145,7 @@ fundef : data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_de
 
 argdecs : /* empty */ { $$ = new cdk::sequence_node(LINE); }
         | argdec { $$ = new cdk::sequence_node(LINE, $1); }
-        | argdecs ',' argdec { $$ = new cdk::sequence_node(LINE, $3, $1); delete $4; };
+        | argdecs ',' argdec { $$ = new cdk::sequence_node(LINE, $3, $1); };
         ;
 
 argdec : data_type tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, nullptr); }
@@ -176,6 +176,7 @@ opt_instructions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
 
 instruction : tIF '(' expression ')' instruction %prec tIF { $$ = new udf::if_node(LINE, $3, $5); }
             | tIF '(' expression ')' instruction tELSE instruction { $$ = new udf::if_else_node(LINE, $3, $5, $7); }
+            | tIF '(' expression ')' instruction tELIF '(' expression ')' instruction { $$ = new udf::if_else_node(LINE, $3, $5, new udf::if_node(LINE, $8, $10)); }
             | tFOR '(' opt_forinit ';' opt_expressions ';' opt_expressions ')' instruction { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
             | expression ';' { $$ = new udf::evaluation_node(LINE, $1); }
             | tWRITE expressions ';' { $$ = new udf::write_node(LINE, $2, false); }

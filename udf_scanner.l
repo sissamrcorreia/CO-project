@@ -72,6 +72,7 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 
 "if"                     return tIF;
 "else"                   return tELSE;
+"elif"                   return tELIF;
 
   /* ====================================================================== */
   /* ====[                     Iteration Statements                   ]==== */
