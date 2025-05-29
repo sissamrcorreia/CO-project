@@ -47,7 +47,7 @@
 %token tWRITE tWRITELN tINPUT
 %token tBREAK tCONTINUE tRETURN
 %token tNULLPTR tSIZEOF tOBJECTS
-%token tTYPE_STRING tTYPE_INT tTYPE_REAL tTYPE_VOID tTYPE_POINTER tTYPE_AUTO tVOID tTYPE_TENSOR
+%token tTYPE_STRING tTYPE_INT tTYPE_REAL tTYPE_VOID tTYPE_POINTER tTYPE_AUTO tTYPE_TENSOR
 %token tAND tOR tNE tLE tGE
 %token tCAPACITY tDIM tDIMS tCONTRACT tRANK tRESHAPE
 
@@ -110,7 +110,6 @@ opt_vardecs : /* empty */ { $$ = nullptr; }
 data_type : tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_STRING); }
           | tTYPE_INT { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT); }
           | tTYPE_REAL { $$ = cdk::primitive_type::create(8, cdk::TYPE_DOUBLE); }
-          | tTYPE_VOID { $$ = cdk::primitive_type::create(0, cdk::TYPE_VOID); }
           | tTYPE_TENSOR '<' tensor_dimensions '>' { $$ = cdk::primitive_type::create(0, cdk::TYPE_TENSOR); } // TODO: Check first argument (create)
           | tTYPE_POINTER '<' data_type '>' { $$ = cdk::reference_type::create(4, $3); }
           | tTYPE_POINTER '<' tTYPE_AUTO '>' { $$ = cdk::reference_type::create(4, nullptr); };
@@ -120,7 +119,7 @@ tensor_dimensions : tINTEGER { $$ = new cdk::sequence_node(LINE, new cdk::intege
                   | tensor_dimensions ',' tINTEGER { $$ = new cdk::sequence_node(LINE, new cdk::integer_node(LINE, $3), $1); }
                   ;
 
-void_type : tVOID { $$ = cdk::primitive_type::create(0, cdk::TYPE_VOID); }
+void_type : tTYPE_VOID { $$ = cdk::primitive_type::create(0, cdk::TYPE_VOID); }
           ;
 
 opt_initializer : /* empty */ { $$ = nullptr; }
