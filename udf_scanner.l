@@ -94,6 +94,9 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "!="                   return tNE;
 "<="                   return tLE;
 ">="                   return tGE;
+"&&"                   return tAND;
+"||"                   return tOR;
+
 "**"                   return tCONTRACT;
 ".capacity"            return tCAPACITY;
 ".dim"                 return tDIM;
