@@ -28,7 +28,7 @@ LETTER  [A-Za-z_]
 IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 
 %x X_COMMENT
-%x X_STRING  X_BACKSLASH   X_CHAR    X_CHAR_END
+%x X_STRING  X_BACKSLASH
 %x X_OCTAL   X_HEXADECIMAL X_HEX_INT X_BIN_INT
 
 %%
@@ -50,6 +50,7 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "int"                    return tTYPE_INT;
 "real"                   return tTYPE_REAL;
 "string"                 return tTYPE_STRING;
+"void"                   return tTYPE_VOID;
 "tensor"                 return tTYPE_TENSOR;
 "auto"                   return tTYPE_AUTO;
 "ptr"                    return tTYPE_POINTER;
