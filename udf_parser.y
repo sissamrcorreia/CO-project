@@ -246,7 +246,7 @@ expression : integer { $$ = $1; }
            | lvalue '.' tDIM '(' expression ')' { $$ = new udf::tensor_dim_node(LINE, new cdk::rvalue_node(LINE, $1), $5); }
            | lvalue '.' tDIMS { $$ = new udf::tensor_dims_node(LINE, new cdk::rvalue_node(LINE, $1), nullptr); }
            | lvalue '.' tRANK { $$ = new udf::tensor_rank_node(LINE, new cdk::rvalue_node(LINE, $1)); }
-           | lvalue '.' tRESHAPE '(' opt_expressions ')' { $$ = new udf::tensor_reshape_node(LINE, new cdk::rvalue_node(LINE, $1), $5); }
+           | lvalue '.' tRESHAPE '(' tensor_dimensions ')' { $$ = new udf::tensor_reshape_node(LINE, new cdk::rvalue_node(LINE, $1), $5); }
            /* TENSOR LITERAL */
            | tensor { $$ = $1; }
            ;
