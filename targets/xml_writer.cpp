@@ -299,11 +299,15 @@ void udf::xml_writer::do_variable_declaration_node(udf::variable_declaration_nod
   ASSERT_SAFE_EXPRESSIONS;
   reset_new_symbol();
 
+  std::string type;
+  if (node->type() == nullptr) type = "unknown";
+  else type = cdk::to_string(node->type());
+  
   os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='"
-      << qualifier_name(node->qualifier()) << "' type='" << cdk::to_string(node->type()) << "'>" << std::endl;
+      << qualifier_name(node->qualifier()) << "' type='" << type << "'>" << std::endl;
   
   if (node->initializer()) {
-    openTag("initializer", lvl + 2);
+    openTag("initializer", lvl);
     node->initializer()->accept(this, lvl + 4);
     closeTag("initializer", lvl + 2);
   }
