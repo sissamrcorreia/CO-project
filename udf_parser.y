@@ -33,6 +33,7 @@
   cdk::sequence_node   *sequence;
   cdk::expression_node *expression; /* expression nodes */
   cdk::lvalue_node     *lvalue;
+  std::vector<size_t> *dims;
   
   udf::block_node      *block;      /* block node */
   udf::tensor_node     *tensor;     /* tensor node */
@@ -52,7 +53,8 @@
 %token tCAPACITY tDIM tDIMS tCONTRACT tRANK tRESHAPE
 
 %type <node> instruction return fundec fundef else_part
-%type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements tensor_dimensions
+%type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements
+%type <dims> tensor_dimensions
 %type <expression> expression opt_initializer integer real tensor
 %type <lvalue> lvalue
 %type <block> block
@@ -110,14 +112,14 @@ opt_vardecs : /* empty */ { $$ = nullptr; }
 data_type : tTYPE_STRING { $$ = cdk::primitive_type::create(4, cdk::TYPE_STRING); }
           | tTYPE_INT { $$ = cdk::primitive_type::create(4, cdk::TYPE_INT); }
           | tTYPE_REAL { $$ = cdk::primitive_type::create(8, cdk::TYPE_DOUBLE); }
-          | tTYPE_TENSOR '<' tensor_dimensions '>' { $$ = cdk::primitive_type::create(0, cdk::TYPE_TENSOR); } // TODO: Check first argument (create)
+          | tTYPE_TENSOR '<' tensor_dimensions '>' { $$ = cdk::tensor_type::create(*$3); delete $3; }
           | tTYPE_POINTER '<' data_type '>' { $$ = cdk::reference_type::create(4, $3); }
           | tTYPE_POINTER '<' tTYPE_AUTO '>' { $$ = cdk::reference_type::create(4, nullptr); };
           ;
 
-tensor_dimensions : tINTEGER { $$ = new cdk::sequence_node(LINE, new cdk::integer_node(LINE, $1)); }
-                  | tensor_dimensions ',' tINTEGER { $$ = new cdk::sequence_node(LINE, new cdk::integer_node(LINE, $3), $1); }
-                  ;
+tensor_dimensions: tINTEGER { $$ = new std::vector<size_t>(); $$->push_back($1); }
+                 | tensor_dimensions ',' tINTEGER { $$ = $1; $$->push_back($3); }
+                 ;
 
 void_type : tTYPE_VOID { $$ = cdk::primitive_type::create(0, cdk::TYPE_VOID); }
           ;
@@ -246,7 +248,7 @@ expression : integer { $$ = $1; }
            | lvalue '.' tDIM '(' expression ')' { $$ = new udf::tensor_dim_node(LINE, new cdk::rvalue_node(LINE, $1), $5); }
            | lvalue '.' tDIMS { $$ = new udf::tensor_dims_node(LINE, new cdk::rvalue_node(LINE, $1), nullptr); }
            | lvalue '.' tRANK { $$ = new udf::tensor_rank_node(LINE, new cdk::rvalue_node(LINE, $1)); }
-           | lvalue '.' tRESHAPE '(' tensor_dimensions ')' { $$ = new udf::tensor_reshape_node(LINE, new cdk::rvalue_node(LINE, $1), $5); }
+           | lvalue '.' tRESHAPE '(' expressions ')' { $$ = new udf::tensor_reshape_node(LINE, new cdk::rvalue_node(LINE, $1), $5); }
            /* TENSOR LITERAL */
            | tensor { $$ = $1; }
            ;
