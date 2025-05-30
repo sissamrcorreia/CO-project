@@ -61,7 +61,7 @@
 %type <s> string
 %type <type> data_type void_type
 
-%nonassoc tIF
+%nonassoc tIF tIFX
 %nonassoc tELSE tELIF
 
 %right '='
@@ -175,12 +175,12 @@ opt_instructions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
                  | instructions { $$ = $1; }
                  ;
 
-else_part : tELSE instruction                              { $$ = $2; }
-          | tELIF '(' expression ')' instruction           { $$ = new udf::if_node(LINE, $3, $5); }
+else_part : tELSE instruction { $$ = $2; }
+          | tELIF '(' expression ')' instruction %prec tIFX { $$ = new udf::if_node(LINE, $3, $5); }
           | tELIF '(' expression ')' instruction else_part { $$ = new udf::if_else_node(LINE, $3, $5, $6); }
           ;
 
-instruction : tIF '(' expression ')' instruction %prec tIF { $$ = new udf::if_node(LINE, $3, $5); }
+instruction : tIF '(' expression ')' instruction %prec tIFX { $$ = new udf::if_node(LINE, $3, $5); }
             | tIF '(' expression ')' instruction else_part { $$ = new udf::if_else_node(LINE, $3, $5, $6); }
             | tFOR '(' opt_forinit ';' opt_expressions ';' opt_expressions ')' instruction { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
             | expression ';' { $$ = new udf::evaluation_node(LINE, $1); }
