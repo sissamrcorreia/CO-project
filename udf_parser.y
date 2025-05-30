@@ -134,6 +134,7 @@ fundec : data_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declarat
        | void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPRIVATE, $1, *$2, $4); delete $2; }
        | tFORWARD void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3;}
        | tPUBLIC void_type tIDENTIFIER '(' argdecs ')' { $$ = new udf::function_declaration_node(LINE, tPUBLIC, $2, *$3, $5); delete $3; }
+       ;
 
 fundef : data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPRIVATE, $1, *$2, $4, $6); delete $2; }
        | tPUBLIC data_type tIDENTIFIER '(' argdecs ')' block { $$ = new udf::function_definition_node(LINE, tPUBLIC, $2, *$3, $5, $7); delete $3; }
