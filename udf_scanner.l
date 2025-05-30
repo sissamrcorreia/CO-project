@@ -99,11 +99,12 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 "||"                   return tOR;
 
 "**"                   return tCONTRACT;
-".capacity"            return tCAPACITY;
-".dim"                 return tDIM;
-".dims"                return tDIMS;
-".rank"                return tRANK;
-".reshape"             return tRESHAPE;
+"."                    return '.';
+"capacity"             return tCAPACITY;
+"dim"                  return tDIM;
+"dims"                 return tDIMS;
+"rank"                 return tRANK;
+"reshape"              return tRESHAPE;
 "input"                return tINPUT;
 
   /* ====================================================================== */
