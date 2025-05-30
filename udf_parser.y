@@ -51,7 +51,7 @@
 %token tAND tOR tNE tLE tGE
 %token tCAPACITY tDIM tDIMS tCONTRACT tRANK tRESHAPE
 
-%type <node> instruction return fundec fundef
+%type <node> instruction return fundec fundef else_part
 %type <sequence> file instructions opt_instructions expressions opt_expressions tensor_elements tensor_dimensions
 %type <expression> expression opt_initializer integer real tensor
 %type <lvalue> lvalue
@@ -174,9 +174,13 @@ opt_instructions : /* empty */ { $$ = new cdk::sequence_node(LINE); }
                  | instructions { $$ = $1; }
                  ;
 
+else_part : tELSE instruction                              { $$ = $2; }
+          | tELIF '(' expression ')' instruction           { $$ = new udf::if_node(LINE, $3, $5); }
+          | tELIF '(' expression ')' instruction else_part { $$ = new udf::if_else_node(LINE, $3, $5, $6); }
+          ;
+
 instruction : tIF '(' expression ')' instruction %prec tIF { $$ = new udf::if_node(LINE, $3, $5); }
-            | tIF '(' expression ')' instruction tELSE instruction { $$ = new udf::if_else_node(LINE, $3, $5, $7); }
-            | tIF '(' expression ')' instruction tELIF '(' expression ')' instruction { $$ = new udf::if_else_node(LINE, $3, $5, new udf::if_node(LINE, $8, $10)); }
+            | tIF '(' expression ')' instruction else_part { $$ = new udf::if_else_node(LINE, $3, $5, $6); }
             | tFOR '(' opt_forinit ';' opt_expressions ';' opt_expressions ')' instruction { $$ = new udf::for_node(LINE, $3, $5, $7, $9); }
             | expression ';' { $$ = new udf::evaluation_node(LINE, $1); }
             | tWRITE expressions ';' { $$ = new udf::write_node(LINE, $2, false); }
