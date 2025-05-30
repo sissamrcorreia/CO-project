@@ -151,13 +151,13 @@ argdecs : /* empty */ { $$ = new cdk::sequence_node(LINE); }
         | argdecs ',' argdec { $$ = new cdk::sequence_node(LINE, $3, $1); };
         ;
 
-argdec : data_type tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, nullptr); }
+argdec : data_type tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, nullptr); delete $2; }
        ;
 
 block : '{' opt_vardecs opt_instructions '}' { $$ = new udf::block_node(LINE, $2, $3); }
       ;
       
-fordec : data_type tIDENTIFIER '=' expression { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, $4); }
+fordec : data_type tIDENTIFIER '=' expression { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, $4); delete $2; }
        ;
 
 fordecs : fordec { $$ = new cdk::sequence_node(LINE, $1); }
@@ -204,7 +204,7 @@ lvalue : tIDENTIFIER { $$ = new cdk::variable_node(LINE, *$1); delete $1; }
        | tIDENTIFIER '(' opt_expressions ')' '[' expression ']' { $$ = new udf::index_node(LINE, new udf::function_call_node(LINE, *$1, $3), $6); delete $1; }
        | lvalue '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, new cdk::rvalue_node(LINE, $1), $4); }
        | '(' expression ')' '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, $2, $6); }
-       | tIDENTIFIER '(' opt_expressions ')' '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, new udf::function_call_node(LINE, *$1, $3), $7); }
+       | tIDENTIFIER '(' opt_expressions ')' '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, new udf::function_call_node(LINE, *$1, $3), $7); delete $1; }
        ;
 
 expression : integer { $$ = $1; }
