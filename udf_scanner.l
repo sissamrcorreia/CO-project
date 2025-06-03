@@ -5,6 +5,7 @@
 #include <string>
 #include <cstring>
 #include <vector>
+#include <errno.h>
 #include <sstream>
 #include <cdk/ast/sequence_node.h>
 #include <cdk/ast/expression_node.h>
@@ -29,9 +30,10 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
 
 %x X_COMMENT
 %x X_STRING  X_BACKSLASH
-%x X_OCTAL   X_HEXADECIMAL X_HEX_INT X_BIN_INT
+%x X_HEX_INT
 
 %%
+  yydebug=1; set_debug(1);
 
   /* ====================================================================== */
   /* ====[                       COMMENTS                             ]==== */
