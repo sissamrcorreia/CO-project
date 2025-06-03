@@ -12,18 +12,6 @@ void udf::postfix_writer::do_nil_node(cdk::nil_node * const node, int lvl) {
 void udf::postfix_writer::do_data_node(cdk::data_node * const node, int lvl) {
   // EMPTY
 }
-void udf::postfix_writer::do_double_node(cdk::double_node * const node, int lvl) {
-  // EMPTY
-}
-void udf::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
-  // EMPTY
-}
-void udf::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
-  // EMPTY
-}
-void udf::postfix_writer::do_or_node(cdk::or_node * const node, int lvl) {
-  // EMPTY
-}
 
 //---------------------------------------------------------------------------
 
@@ -34,6 +22,10 @@ void udf::postfix_writer::do_sequence_node(cdk::sequence_node * const node, int 
 }
 
 //---------------------------------------------------------------------------
+
+void udf::postfix_writer::do_double_node(cdk::double_node * const node, int lvl) {
+  _pf.DOUBLE(node->value()); // push a double
+}
 
 void udf::postfix_writer::do_integer_node(cdk::integer_node * const node, int lvl) {
   _pf.INT(node->value()); // push an integer
@@ -64,6 +56,14 @@ void udf::postfix_writer::do_unary_minus_node(cdk::unary_minus_node * const node
 void udf::postfix_writer::do_unary_plus_node(cdk::unary_plus_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->argument()->accept(this, lvl); // determine the value
+}
+
+void udf::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
+  node->argument()->accept(this, lvl + 2);
+  _pf.INT(0);
+  _pf.EQ();
+  _pf.NOT();
 }
 
 //---------------------------------------------------------------------------
@@ -134,6 +134,28 @@ void udf::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
   node->right()->accept(this, lvl);
   _pf.EQ();
 }
+void udf::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
+  int lbl = ++_lbl;
+  node->left()->accept(this, lvl + 2);
+  _pf.DUP32();
+  _pf.JZ(mklbl(lbl));
+  node->right()->accept(this, lvl + 2);
+  _pf.AND();
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(lbl));
+}
+void udf::postfix_writer::do_or_node(cdk::or_node * const node, int lvl) {
+  ASSERT_SAFE_EXPRESSIONS;
+  int lbl = ++_lbl;
+  node->left()->accept(this, lvl + 2);
+  _pf.DUP32();
+  _pf.JNZ(mklbl(lbl));
+  node->right()->accept(this, lvl + 2);
+  _pf.OR();
+  _pf.ALIGN();
+  _pf.LABEL(mklbl(lbl));
+}
 
 //---------------------------------------------------------------------------
 
@@ -172,15 +194,19 @@ void udf::postfix_writer::do_tensor_node(udf::tensor_node *const node, int lvl) 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_address_of_node(udf::address_of_node * const node, int lvl) {
-  // ASSERT_SAFE_EXPRESSIONS;
-  // TODO: implement this
+  ASSERT_SAFE_EXPRESSIONS;
+  node->lvalue()->accept(this, lvl + 2);
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_alloc_node(udf::alloc_node * const node, int lvl) {
-  // ASSERT_SAFE_EXPRESSIONS;
-  // TODO: implement this
+  ASSERT_SAFE_EXPRESSIONS;
+  node->argument()->accept(this, lvl);
+  _pf.INT(3);
+  _pf.SHTL();
+  _pf.ALLOC(); // allocate
+  _pf.SP(); // put base pointer in stack
 }
 
 //---------------------------------------------------------------------------
@@ -361,18 +387,18 @@ void udf::postfix_writer::do_if_node(udf::if_node * const node, int lvl) {
   _pf.LABEL(mklbl(lbl1));
 }
 
-//---------------------------------------------------------------------------
-
 void udf::postfix_writer::do_if_else_node(udf::if_else_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  int lbl1, lbl2;
+  int lbl_else, lbl_end;
   node->condition()->accept(this, lvl);
-  _pf.JZ(mklbl(lbl1 = ++_lbl));
+  _pf.JZ(mklbl(lbl_else = lbl_end = ++_lbl));
   node->thenblock()->accept(this, lvl + 2);
-  _pf.JMP(mklbl(lbl2 = ++_lbl));
-  _pf.LABEL(mklbl(lbl1));
-  node->elseblock()->accept(this, lvl + 2);
-  _pf.LABEL(mklbl(lbl1 = lbl2));
+  if (node->elseblock()) {
+    _pf.JMP(mklbl(lbl_end = ++_lbl));
+    _pf.LABEL(mklbl(lbl_else));
+    node->elseblock()->accept(this, lvl + 2);
+  }
+  _pf.LABEL(mklbl(lbl_end));
 }
 
 //---------------------------------------------------------------------------
@@ -412,5 +438,8 @@ void udf::postfix_writer::do_break_node(udf::break_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_sizeof_node(udf::sizeof_node * const node, int lvl) {
-  // TODO: implement this
+  ASSERT_SAFE_EXPRESSIONS;
+  _pf.INT(node->argument()->type()->size());
 }
+
+//---------------------------------------------------------------------------
