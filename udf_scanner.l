@@ -26,7 +26,7 @@ SPACE     ([ \t\r]|\n)
 INT       [[:digit:]]+
 
 LETTER  [A-Za-z_]
-IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
+IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
 
 %x X_COMMENT
 %x X_STRING  X_BACKSLASH
@@ -40,7 +40,9 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]])*
   /* ====================================================================== */
 
 "//".*$                /* match the whole line (it is ignored) */
+
 "/*"                   yy_push_state(X_COMMENT);
+<X_COMMENT>"/*"        yy_push_state(X_COMMENT);
 <X_COMMENT>"*/"        yy_pop_state();
 <X_COMMENT>.|"\n"      ;  /* ignore inside comments */
 
