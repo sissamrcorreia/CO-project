@@ -244,72 +244,70 @@ void udf::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
-//   // Note that UDF doesn't have functions. Thus, it doesn't need
-//   // a function node. However, it must start in the main function.
-//   // The ProgramNode (representing the whole program) doubles as a
-//   // main function node.
-
-//   // generate the main function (RTS mandates that its name be "_main")
-//   _pf.TEXT();
-//   _pf.ALIGN();
-//   _pf.GLOBAL("_main", _pf.FUNC());
-//   _pf.LABEL("_main");
-//   _pf.ENTER(0);  // UDF doesn't implement local variables
-
-//   node->statements()->accept(this, lvl);
-
-//   // end the main function
-//   _pf.INT(0);
-//   _pf.STFVAL32();
-//   _pf.LEAVE();
-//   _pf.RET();
-
-//   // these are just a few library function imports
-//   _pf.EXTERN("readi");
-//   _pf.EXTERN("printi");
-//   _pf.EXTERN("prints");
-//   _pf.EXTERN("println");
+  // FIXME
+  ASSERT_SAFE_EXPRESSIONS;
+  reset_new_symbol();
+  _symtab.push();
+  if (node->arguments()) {
+    node->arguments()->accept(this, lvl + 2);
+  }
+  _symtab.pop();
 }
 
 void udf::postfix_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
-//   // Note that UDF doesn't have functions. Thus, it doesn't need
-//   // a function node. However, it must start in the main function.
-//   // The ProgramNode (representing the whole program) doubles as a
-//   // main function node.
+  // FIXME
+  ASSERT_SAFE_EXPRESSIONS;
+  _pf.TEXT();
+  _pf.ALIGN();
+  std::string func_name = node->identifier() == "main" ? "_main" : node->identifier();
+  _pf.GLOBAL(func_name, _pf.FUNC());
+  _pf.LABEL(func_name);
+  _pf.ENTER(0);
+  _symtab.push();
+  if (node->arguments()) {
+    node->arguments()->accept(this, lvl + 2);
+  }
+  if (node->block()) {
+    node->block()->accept(this, lvl + 2);
+  }
+  _symtab.pop();
 
-//   // generate the main function (RTS mandates that its name be "_main")
-//   _pf.TEXT();
-//   _pf.ALIGN();
-//   _pf.GLOBAL("_main", _pf.FUNC());
-//   _pf.LABEL("_main");
-//   _pf.ENTER(0);  // UDF doesn't implement local variables
+  if (node->is_typed(cdk::TYPE_VOID) || !node->type()) {
+    _pf.INT(0);
+    _pf.STFVAL32();
+  }
+  _pf.LEAVE();
+  _pf.RET();
 
-//   node->statements()->accept(this, lvl);
-
-//   // end the main function
-//   _pf.INT(0);
-//   _pf.STFVAL32();
-//   _pf.LEAVE();
-//   _pf.RET();
-
-//   // these are just a few library function imports
-//   _pf.EXTERN("readi");
-//   _pf.EXTERN("printi");
-//   _pf.EXTERN("prints");
-//   _pf.EXTERN("println");
+  _pf.EXTERN("readi");
+  _pf.EXTERN("printi");
+  _pf.EXTERN("prints");
+  _pf.EXTERN("println");
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl) {
-  // TODO: implement this
-  // ASSERT_SAFE_EXPRESSIONS;
-  // if (node->value() != nullptr) {
-  //   node->value()->accept(this, lvl);
-  //   _pf.STFVAL32();
-  // }
-  // _pf.LEAVE();
-  // _pf.RET();
+  // FIXME
+  ASSERT_SAFE_EXPRESSIONS;
+  if (_function->type()->name() != cdk::TYPE_VOID) {
+    node->retval()->accept(this, lvl + 2);
+    if (_function->type()->name() == cdk::TYPE_INT || _function->type()->name() == cdk::TYPE_STRING
+        || _function->type()->name() == cdk::TYPE_POINTER) {
+      _pf.STFVAL32();
+    } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
+      if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+      _pf.STFVAL64();
+    } else {
+      std::cerr << "ERROR: Unsupported return type at line " << node->lineno() << std::endl;
+      exit(1);
+    }
+  } else {
+    _pf.INT(0);
+    _pf.STFVAL32();
+  }
+  _pf.LEAVE();
+  _pf.RET();
 }
 
 //---------------------------------------------------------------------------
@@ -404,7 +402,23 @@ void udf::postfix_writer::do_if_else_node(udf::if_else_node * const node, int lv
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_function_call_node(udf::function_call_node * const node, int lvl) {
-  // TODO: implement this
+  // FIXME
+  ASSERT_SAFE_EXPRESSIONS;
+  if (node->arguments()) {
+    node->arguments()->accept(this, lvl + 2);
+  }
+  std::string func_name = node->identifier() == "main" ? "_main" : node->identifier();
+  _pf.CALL(func_name);
+  if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER)) {
+    _pf.LDFVAL32();
+  } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
+    _pf.LDFVAL64();
+  } else if (node->is_typed(cdk::TYPE_TENSOR)) {
+    _pf.LDFVAL32();
+  } else if (!node->is_typed(cdk::TYPE_VOID)) {
+    std::cerr << "ERROR: Unsupported return type for function call '" << func_name << "'" << std::endl;
+    exit(1);
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -412,6 +426,7 @@ void udf::postfix_writer::do_function_call_node(udf::function_call_node * const 
 void udf::postfix_writer::do_index_node(udf::index_node * const node, int lvl) {
   // TODO: implement this
 }
+
 void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {
   _symtab.push();
   node->declarations()->accept(this, lvl + 2);

@@ -15,6 +15,9 @@ namespace udf {
     cdk::basic_postfix_emitter &_pf;
     int _lbl;
 
+    std::shared_ptr<udf::symbol> _function; // for keeping track of the current function and its arguments
+
+
   public:
     postfix_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab,
                    cdk::basic_postfix_emitter &pf) :
