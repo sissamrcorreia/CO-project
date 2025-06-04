@@ -8,7 +8,8 @@
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_sequence_node(cdk::sequence_node *const node, int lvl) {
-  // EMPTY
+  for (size_t i = 0; i < node->size(); i++)
+    node->node(i)->accept(this, lvl);
 }
 
 //---------------------------------------------------------------------------
@@ -17,18 +18,6 @@ void udf::type_checker::do_nil_node(cdk::nil_node *const node, int lvl) {
   // EMPTY
 }
 void udf::type_checker::do_data_node(cdk::data_node *const node, int lvl) {
-  // EMPTY
-}
-void udf::type_checker::do_double_node(cdk::double_node *const node, int lvl) {
-  // EMPTY
-}
-void udf::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
-  // EMPTY
-}
-void udf::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
-  // EMPTY
-}
-void udf::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
   // EMPTY
 }
 
@@ -69,7 +58,9 @@ void udf::type_checker::do_tensor_node(udf::tensor_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_address_of_node(udf::address_of_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->lvalue()->accept(this, lvl + 2);
+  node->type(cdk::reference_type::create(4, node->lvalue()->type()));
 }
 
 //---------------------------------------------------------------------------
@@ -79,18 +70,23 @@ void udf::type_checker::do_index_node(udf::index_node * const node, int lvl) {
 }
 
 void udf::type_checker::do_block_node(udf::block_node *const node, int lvl) {
-  // TODO: implement this
+  // EMPTY
 }
 
 void udf::type_checker::do_continue_node(udf::continue_node *const node, int lvl) {
-  // TODO: implement this
+  // EMPTY
 }
 
 void udf::type_checker::do_break_node(udf::break_node *const node, int lvl) {
-  // TODO: implement this
+  // EMPTY
 }
 
 //---------------------------------------------------------------------------
+
+void udf::type_checker::do_double_node(cdk::double_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+}
 
 void udf::type_checker::do_integer_node(cdk::integer_node *const node, int lvl) {
   ASSERT_UNSPEC;
@@ -100,6 +96,11 @@ void udf::type_checker::do_integer_node(cdk::integer_node *const node, int lvl) 
 void udf::type_checker::do_string_node(cdk::string_node *const node, int lvl) {
   ASSERT_UNSPEC;
   node->type(cdk::primitive_type::create(4, cdk::TYPE_STRING));
+}
+
+void udf::type_checker::do_nullptr_node(udf::nullptr_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->type(cdk::reference_type::create(4, nullptr));
 }
 
 //---------------------------------------------------------------------------
@@ -173,10 +174,29 @@ void udf::type_checker::do_ne_node(cdk::ne_node *const node, int lvl) {
 void udf::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
   processBinaryExpression(node, lvl);
 }
+void udf::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl + 2);
+  if (node->argument()->is_typed(cdk::TYPE_INT)) {
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  } else if (node->argument()->is_typed(cdk::TYPE_UNSPEC)) {
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    node->argument()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  } else {
+    throw std::string("wrong type in unary logical expression");
+  }
+}
+void udf::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
+  // TODO
+}
+void udf::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
+  // TODO
+}
 
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_variable_node(cdk::variable_node *const node, int lvl) {
+  // TODO: review this
   ASSERT_UNSPEC;
   const std::string &id = node->name();
   std::shared_ptr<udf::symbol> symbol = _symtab.find(id);
@@ -246,17 +266,11 @@ void udf::type_checker::do_evaluation_node(udf::evaluation_node *const node, int
 }
 
 void udf::type_checker::do_write_node(udf::write_node *const node, int lvl) {
-  // node->argument()->accept(this, lvl + 2);
+  node->arguments()->accept(this, lvl + 2);
 }
 
-//---------------------------------------------------------------------------
-
 void udf::type_checker::do_input_node(udf::input_node *const node, int lvl) {
-  // try {
-  //   node->argument()->accept(this, lvl);
-  // } catch (const std::string &id) {
-  //   throw "undeclared variable '" + id + "'";
-  // }
+  node->type(cdk::primitive_type::create(0, cdk::TYPE_UNSPEC));
 }
 
 //---------------------------------------------------------------------------
@@ -271,10 +285,12 @@ void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_if_node(udf::if_node *const node, int lvl) {
+  // TODO: review this
   node->condition()->accept(this, lvl + 4);
 }
 
 void udf::type_checker::do_if_else_node(udf::if_else_node *const node, int lvl) {
+  // TODO: review this
   node->condition()->accept(this, lvl + 4);
 }
 
@@ -286,15 +302,10 @@ void udf::type_checker::do_function_call_node(udf::function_call_node *const nod
 
 //---------------------------------------------------------------------------
 
-void udf::type_checker::do_nullptr_node(udf::nullptr_node *const node, int lvl) {
-  // TODO: revisit this
+void udf::type_checker::do_sizeof_node(udf::sizeof_node *const node, int lvl) {
   ASSERT_UNSPEC;
-
-  node->type(cdk::reference_type::create(4, cdk::primitive_type::create(0, cdk::TYPE_UNSPEC)));
+  node->argument()->accept(this, lvl + 2);
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
 //---------------------------------------------------------------------------
-
-void udf::type_checker::do_sizeof_node(udf::sizeof_node *const node, int lvl) {
-  // TODO: implement this
-}
