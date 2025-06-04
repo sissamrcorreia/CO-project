@@ -3,8 +3,6 @@
 %{
 // make relevant includes before including the parser's tab file
 #include <string>
-#include <cstring>
-#include <vector>
 #include <errno.h>
 #include <sstream>
 #include <cdk/ast/sequence_node.h>
@@ -16,26 +14,22 @@
 // output stream for building string literals
 static std::ostringstream strlit;
 
-#define SAFE_STRTOUL(base) {                \
-  int i = std::strtoul(yytext, NULL, base); \
-  if (errno == ERANGE) {                    \
-    yyerror("Integer overflow");            \
-    errno = 0;                              \
-  } else {                                  \
-    yylval.i = i;                           \
-    return tINTEGER;                        \
-  }                                         \
+#define CHECK_STOI(base) {                                 \
+  try {                                                    \
+    yylval.i = std::stoi(std::string(yytext), NULL, base); \
+    return tINTEGER;                                       \
+  } catch (std::out_of_range const& ex) {                  \
+    yyerror("Integer overflow");                           \
+  }                                                        \
 }
 
-#define SAFE_STRTOD() {                 \
-  double d = std::strtod(yytext, NULL); \
-  if (errno == ERANGE) {                \
-    yyerror("Real overflow");           \
-    errno = 0;                          \
-  } else {                              \
-    yylval.d = d;                       \
-    return tREAL;                       \
-  }                                     \
+#define CHECK_STOD(base) {                     \
+  try {                                        \
+    yylval.i = std::stod(std::string(yytext)); \
+    return tREAL;                              \
+  } catch (std::out_of_range const& ex) {      \
+    yyerror("Real overflow");                  \
+  }                                            \
 }
 
 // don't change this
@@ -44,12 +38,13 @@ static std::ostringstream strlit;
 
 SPACE     ([ \t\r]|\n)
 INT       [[:digit:]]+
+EXP [Ee][-+]?[0-9]+
 
 LETTER  [A-Za-z_]
 IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
 
 %x X_COMMENT
-%x X_STRING  X_BACKSLASH
+%x X_STRING  X_BACKSLASH X_STRING_IGN
 
 %%
   yydebug=1; set_debug(1);
@@ -145,16 +140,18 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
   /* ====[                     Integers                               ]==== */
   /* ====================================================================== */
 
-0x[[:xdigit:]]+           SAFE_STRTOUL(16);
+0x[[:xdigit:]]+           CHECK_STOI(16);
 0x[[:alnum:]]+            yyerror("Invalid base 16 number");
 
-0|[1-9][0-9]*             SAFE_STRTOUL(10);
+[[:digit:]]+              CHECK_STOI(10);
 
   /* ====================================================================== */
   /* ====[                     Reais                                  ]==== */
   /* ====================================================================== */
 
-([0-9]*\.[0-9]+|[0-9]+\.[0-9]*)([Ee][-+]?[0-9]+)? SAFE_STRTOD();
+[0-9]*\.[0-9]+{EXP}?      CHECK_STOD();
+[0-9]+\.[0-9]*{EXP}?      CHECK_STOD();
+[0-9]+{EXP}               CHECK_STOD();
 
   /* ====================================================================== */
   /* ====[                     Identifiers (names)                    ]==== */
@@ -166,27 +163,38 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
   /* ====[                     Strings                                ]==== */
   /* ====================================================================== */
 
-"\""                           yy_push_state(X_STRING);
-<X_STRING>\\                   yy_push_state(X_BACKSLASH);
-<X_STRING>"\""                 {
-                                 yylval.s = new std::string(strlit.str());
-                                 strlit.str("");
-                                 yy_pop_state();
-                                 return tSTRING;
+\"                             yy_push_state(X_STRING); strlit.str("");
+<X_STRING>\"                   {
+                                yylval.s = new std::string(strlit.str());
+                                yy_pop_state();
+                                return tSTRING;
                                }
+<X_STRING>\0                   yyerror("Null byte in string");
+<X_STRING>\\                   yy_push_state(X_BACKSLASH);
 <X_STRING>.                    strlit << *yytext;
 
 <X_BACKSLASH>n                 strlit << '\n'; yy_pop_state();
 <X_BACKSLASH>r                 strlit << '\r'; yy_pop_state();
 <X_BACKSLASH>t                 strlit << '\t'; yy_pop_state();
-<X_BACKSLASH>"\""              strlit << '"';  yy_pop_state();
+<X_BACKSLASH>\"                strlit << '"';  yy_pop_state();
 <X_BACKSLASH>\\                strlit << '\\'; yy_pop_state();
-
-<X_BACKSLASH>[[:xdigit:]]{1,2} {
-                                 strlit << (char)(unsigned char)strtoul(yytext, NULL, 16);
-                                 yy_pop_state();
-                               }
+<X_BACKSLASH>0                 yy_push_state(X_STRING_IGN);
+<X_BACKSLASH>\0                yyerror("Null byte in string");
+<X_BACKSLASH>[[:xdigit:]]{1,2}  {
+                                strlit << (char) std::stoi(std::string(yytext), NULL, 16);
+                                yy_pop_state();
+                              }
 <X_BACKSLASH>.                 strlit << *yytext; yy_pop_state();
+
+<X_STRING_IGN>\"                 {
+                                yylval.s = new std::string(strlit.str());
+                                yy_pop_state(); /* X_STRING_IGN */
+                                yy_pop_state(); /* X_BACKSLASH */
+                                yy_pop_state(); /* X_STRING */
+                                return tSTRING;
+                              }
+<X_STRING_IGN>\0                 yyerror("Null byte in string");
+<X_STRING_IGN>.                  ; /* ignore rest of string */
 
   /* ====================================================================== */
   /* ====[                    (other characters)                      ]==== */
