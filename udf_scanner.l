@@ -13,10 +13,30 @@
 #include "ast/tensor_node.h"
 #include "udf_parser.tab.h"
 
-static std::vector<int> deferred;  // deferred tokens
-
 // output stream for building string literals
 static std::ostringstream strlit;
+
+#define SAFE_STRTOUL(base) {                \
+  int i = std::strtoul(yytext, NULL, base); \
+  if (errno == ERANGE) {                    \
+    yyerror("Integer overflow");            \
+    errno = 0;                              \
+  } else {                                  \
+    yylval.i = i;                           \
+    return tINTEGER;                        \
+  }                                         \
+}
+
+#define SAFE_STRTOD() {                 \
+  double d = std::strtod(yytext, NULL); \
+  if (errno == ERANGE) {                \
+    yyerror("Real overflow");           \
+    errno = 0;                          \
+  } else {                              \
+    yylval.d = d;                       \
+    return tREAL;                       \
+  }                                     \
+}
 
 // don't change this
 #define yyerror LexerError
@@ -30,7 +50,6 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
 
 %x X_COMMENT
 %x X_STRING  X_BACKSLASH
-%x X_HEX_INT
 
 %%
   yydebug=1; set_debug(1);
@@ -102,8 +121,8 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
 "&&"                   return tAND;
 "||"                   return tOR;
 
+"."                    return *yytext;
 "**"                   return tCONTRACT;
-"."                    return '.';
 "capacity"             return tCAPACITY;
 "dim"                  return tDIM;
 "dims"                 return tDIMS;
@@ -126,19 +145,16 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
   /* ====[                     Integers                               ]==== */
   /* ====================================================================== */
 
-"0x"                   yy_push_state(X_HEX_INT);
+0x[[:xdigit:]]+           SAFE_STRTOUL(16);
+0x[[:alnum:]]+            yyerror("Invalid base 16 number");
 
-<X_HEX_INT>[[:xdigit:]]+      { yylval.i = strtoul(yytext, NULL, 16); yy_pop_state(); return tINTEGER; }
-<X_HEX_INT>.|\n               std::cerr << "WARNING: line " << lineno() << ": bad hexadecimal data!" << std::endl; exit(1);
-
-{INT}                  yylval.i = strtoul(yytext, NULL, 10); return tINTEGER;
+0|[1-9][0-9]*             SAFE_STRTOUL(10);
 
   /* ====================================================================== */
   /* ====[                     Reais                                  ]==== */
   /* ====================================================================== */
 
-
-([0-9]*\.[0-9]+|[0-9]+\.[0-9]*)([eE][-+]?[0-9]+)? { yylval.d = strtod(yytext, NULL); return tREAL; }
+([0-9]*\.[0-9]+|[0-9]+\.[0-9]*)([Ee][-+]?[0-9]+)? SAFE_STRTOD();
 
   /* ====================================================================== */
   /* ====[                     Identifiers (names)                    ]==== */
@@ -163,6 +179,7 @@ IDENTIFIER   {LETTER}({LETTER}|[[:digit:]]|_)*
 <X_BACKSLASH>n                 strlit << '\n'; yy_pop_state();
 <X_BACKSLASH>r                 strlit << '\r'; yy_pop_state();
 <X_BACKSLASH>t                 strlit << '\t'; yy_pop_state();
+<X_BACKSLASH>"\""              strlit << '"';  yy_pop_state();
 <X_BACKSLASH>\\                strlit << '\\'; yy_pop_state();
 
 <X_BACKSLASH>[[:xdigit:]]{1,2} {
