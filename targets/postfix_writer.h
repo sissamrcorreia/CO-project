@@ -18,8 +18,11 @@ namespace udf {
 
     std::set<std::string> _functions_to_declare;
 
+    bool _returnSeen; // when building a function
+
     std::shared_ptr<udf::symbol> _function; // for keeping track of the current function and its arguments
 
+    std::string _currentBodyRetLabel; // where to jump when a return occurs of an exclusive section ends
 
   public:
     postfix_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab,

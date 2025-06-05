@@ -300,14 +300,10 @@ void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl)
       _pf.STFVAL64();
     } else {
       std::cerr << "ERROR: Unsupported return type at line " << node->lineno() << std::endl;
-      exit(1);
     }
-  } else {
-    _pf.INT(0);
-    _pf.STFVAL32();
   }
-  _pf.LEAVE();
-  _pf.RET();
+  _pf.JMP(_currentBodyRetLabel);
+  _returnSeen = true;
 }
 
 //---------------------------------------------------------------------------
