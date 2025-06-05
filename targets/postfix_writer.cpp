@@ -332,19 +332,34 @@ void udf::postfix_writer::do_evaluation_node(udf::evaluation_node * const node, 
 }
 
 void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
-  // ASSERT_SAFE_EXPRESSIONS;
-  // node->argument()->accept(this, lvl); // determine the value to write
-  // if (node->argument()->is_typed(cdk::TYPE_INT)) {
-  //   _pf.CALL("writei");
-  //   _pf.TRASH(4); // delete the writeed value
-  // } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
-  //   _pf.CALL("writes");
-  //   _pf.TRASH(4); // delete the writeed value's address
-  // } else {
-  //   std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
-  //   exit(1);
-  // }
-  // _pf.CALL("writeln"); // write a newline
+  ASSERT_SAFE_EXPRESSIONS;
+  for (size_t ix = 0; ix < node->arguments()->size(); ix++) {
+    auto child = dynamic_cast<cdk::expression_node*>(node->arguments()->node(ix));
+
+    std::shared_ptr<cdk::basic_type> etype = child->type();
+    child->accept(this, lvl); // expression to print
+    if (etype->name() == cdk::TYPE_INT) {
+      _functions_to_declare.insert("printi");
+      _pf.CALL("printi");
+      _pf.TRASH(4); // trash int
+    } else if (etype->name() == cdk::TYPE_DOUBLE) {
+      _functions_to_declare.insert("printd");
+      _pf.CALL("printd");
+      _pf.TRASH(8); // trash double
+    } else if (etype->name() == cdk::TYPE_STRING) {
+      _functions_to_declare.insert("prints");
+      _pf.CALL("prints");
+      _pf.TRASH(4);
+    } else {
+      std::cerr << "cannot print expression of unknown type" << std::endl;
+      return;
+    }
+  }
+
+  if (node->newline()) {
+    _functions_to_declare.insert("println");
+    _pf.CALL("println");
+  }
 }
 
 //---------------------------------------------------------------------------

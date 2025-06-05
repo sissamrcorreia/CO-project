@@ -2,6 +2,7 @@
 
 #include "targets/basic_ast_visitor.h"
 
+#include <set>
 #include <sstream>
 #include <cdk/emitters/basic_postfix_emitter.h>
 
@@ -14,6 +15,8 @@ namespace udf {
     cdk::symbol_table<udf::symbol> &_symtab;
     cdk::basic_postfix_emitter &_pf;
     int _lbl;
+
+    std::set<std::string> _functions_to_declare;
 
     std::shared_ptr<udf::symbol> _function; // for keeping track of the current function and its arguments
 
