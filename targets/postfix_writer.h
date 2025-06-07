@@ -3,6 +3,7 @@
 #include "targets/basic_ast_visitor.h"
 
 #include <set>
+#include <stack>
 #include <sstream>
 #include <cdk/emitters/basic_postfix_emitter.h>
 
@@ -17,6 +18,9 @@ namespace udf {
     int _lbl;
 
     std::set<std::string> _functions_to_declare;
+
+    bool _inForInit;
+    std::stack<int> _forIni, _forStep, _forEnd; // for break/repeat
 
     bool _returnSeen; // when building a function
 

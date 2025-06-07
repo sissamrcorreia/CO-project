@@ -335,7 +335,7 @@ void udf::type_checker::do_assignment_node(cdk::assignment_node *const node, int
     auto symbol = std::make_shared<udf::symbol>(cdk::primitive_type::create(4, cdk::TYPE_INT), id, 0);
     _symtab.insert(id, symbol);
     _parent->set_new_symbol(symbol);  // advise parent that a symbol has been inserted
-    node->lvalue()->accept(this, lvl);  //DAVID: bah!
+    node->lvalue()->accept(this, lvl);
   }
 
   if (!node->lvalue()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in left argument of assignment expression");
@@ -393,13 +393,15 @@ void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_if_node(udf::if_node *const node, int lvl) {
-  // TODO: review this
   node->condition()->accept(this, lvl + 4);
+  if (!node->condition()->is_typed(cdk::TYPE_INT))
+    throw std::string("expected integer condition");
 }
 
 void udf::type_checker::do_if_else_node(udf::if_else_node *const node, int lvl) {
-  // TODO: review this
   node->condition()->accept(this, lvl + 4);
+  if (!node->condition()->is_typed(cdk::TYPE_INT))
+    throw std::string("expected integer condition");
 }
 
 //---------------------------------------------------------------------------
