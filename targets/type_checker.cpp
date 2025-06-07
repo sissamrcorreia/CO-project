@@ -24,35 +24,124 @@ void udf::type_checker::do_data_node(cdk::data_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_tensor_capacity_node(udf::tensor_capacity_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl + 2);
+  if (!node->argument()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_capacity argument must be a tensor");
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
 void udf::type_checker::do_tensor_rank_node(udf::tensor_rank_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl + 2);
+  if (!node->argument()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_rank argument must be a tensor");
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
 void udf::type_checker::do_tensor_dim_node(udf::tensor_dim_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl + 2);
+  if (!node->argument()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_dim tensor argument must be a tensor");
+  }
+  node->dimension()->accept(this, lvl + 2);
+  if (!node->dimension()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("tensor_dim dimension argument must be an integer");
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
 void udf::type_checker::do_tensor_dims_node(udf::tensor_dims_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl + 2);
+  if (!node->argument()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_dims argument must be a tensor");
+  }
+  // Returns a pointer to the dimensions array (size_t*)
+  node->type(cdk::reference_type::create(4, cdk::primitive_type::create(4, cdk::TYPE_INT)));
 }
 
 void udf::type_checker::do_tensor_index_node(udf::tensor_index_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->base()->accept(this, lvl + 2);
+  if (!node->base()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_index tensor argument must be a tensor");
+  }
+  auto indices = node->position();
+  for (size_t i = 0; i < indices->size(); i++) {
+    auto index = dynamic_cast<cdk::expression_node*>(indices->node(i));
+    index->accept(this, lvl + 2);
+    if (!index->is_typed(cdk::TYPE_INT)) {
+      throw std::string("tensor_index indices must be integers");
+    }
+  }
+  node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
 }
 
 void udf::type_checker::do_tensor_reshape_node(udf::tensor_reshape_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->tensor()->accept(this, lvl + 2);
+  if (!node->tensor()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_reshape tensor argument must be a tensor");
+  }
+  auto new_dims = node->arguments();
+  for (size_t i = 0; i < new_dims->size(); i++) {
+    auto dim = dynamic_cast<cdk::expression_node*>(new_dims->node(i));
+    dim->accept(this, lvl + 2);
+    if (!dim->is_typed(cdk::TYPE_INT)) {
+      throw std::string("tensor_reshape dimensions must be integers");
+    }
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_TENSOR));
 }
 
 void udf::type_checker::do_tensor_contract_node(udf::tensor_contract_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  if (!node->left()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_contract left argument must be a tensor");
+  }
+  node->right()->accept(this, lvl + 2);
+  if (!node->right()->is_typed(cdk::TYPE_TENSOR)) {
+    throw std::string("tensor_contract right argument must be a tensor");
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_TENSOR));
 }
 
 void udf::type_checker::do_tensor_node(udf::tensor_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  auto elements = node->elements();
+  if (!elements || elements->size() == 0) {
+    throw std::string("tensor literal cannot be empty");
+  }
+
+  // Ensure all sub-sequences have the same length and contain doubles
+  size_t first_size = 0;
+  bool first = true;
+  for (size_t i = 0; i < elements->size(); i++) {
+    auto subseq = dynamic_cast<cdk::sequence_node*>(elements->node(i));
+    if (!subseq) {
+      throw std::string("tensor elements must be sequences");
+    }
+    subseq->accept(this, lvl + 2);
+    for (size_t j = 0; j < subseq->size(); j++) {
+      auto elem = dynamic_cast<cdk::expression_node*>(subseq->node(j));
+      if (!elem->is_typed(cdk::TYPE_DOUBLE)) {
+        throw std::string("tensor elements must be doubles");
+      }
+    }
+    if (first) {
+      first_size = subseq->size();
+      first = false;
+    } else if (subseq->size() != first_size) {
+      throw std::string("inconsistent dimensions in tensor literal");
+    }
+  }
+
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_TENSOR));
 }
 
 //---------------------------------------------------------------------------
@@ -66,7 +155,26 @@ void udf::type_checker::do_address_of_node(udf::address_of_node *const node, int
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_index_node(udf::index_node * const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  std::shared_ptr<cdk::reference_type> btype;
+
+  if (node->base()) {
+    node->base()->accept(this, lvl + 2);
+    btype = cdk::reference_type::cast(node->base()->type());
+    if (!node->base()->is_typed(cdk::TYPE_POINTER))
+      throw std::string("pointer expression expected in index left-value");
+  }
+  // else {
+  //   btype = cdk::reference_type::cast(_function->type());
+  //   if (!_function->is_typed(cdk::TYPE_POINTER))
+  //     throw std::string("return pointer expression expected in index left-value");
+  // }
+
+  node->index()->accept(this, lvl + 2);
+  if (!node->index()->is_typed(cdk::TYPE_INT))
+    throw std::string("integer expression expected in left-value index");
+
+  // node->type(btype->referenced());
 }
 
 void udf::type_checker::do_block_node(udf::block_node *const node, int lvl) {
