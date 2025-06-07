@@ -255,55 +255,71 @@ void udf::postfix_writer::do_function_declaration_node(udf::function_declaration
 }
 
 void udf::postfix_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
-  // FIXME
   ASSERT_SAFE_EXPRESSIONS;
   _pf.TEXT();
   _pf.ALIGN();
-  std::string func_name = node->identifier() == "main" ? "_main" : node->identifier();
+  std::string func_name = (node->identifier() == "main" || node->identifier() == "udf") ? "_main" : node->identifier();
   _pf.GLOBAL(func_name, _pf.FUNC());
   _pf.LABEL(func_name);
-  _pf.ENTER(0);
+  _pf.ENTER(0); // Set up stack frame (0 bytes for local variables)
+  _function = node;
+  _currentBodyRetLabel = func_name + "_ret";
+  _returnSeen = false; // Initialize return flag
   _symtab.push();
+  
+  // Handle arguments, if any
   if (node->arguments()) {
     node->arguments()->accept(this, lvl + 2);
   }
+  
+  // Handle block, even if empty
   if (node->block()) {
     node->block()->accept(this, lvl + 2);
   }
-  _symtab.pop();
-
-  if (node->is_typed(cdk::TYPE_VOID) || !node->type()) {
-    _pf.INT(0);
+  
+  // Ensure a return for non-void functions if none was seen
+  if (!_returnSeen && node->type() && node->type()->name() != cdk::TYPE_VOID) {
+    _pf.INT(0); // Default return value of 0
     _pf.STFVAL32();
   }
+  
+  _pf.LABEL(_currentBodyRetLabel);
   _pf.LEAVE();
   _pf.RET();
-
+  
+  // Declare external functions if needed
   _pf.EXTERN("readi");
   _pf.EXTERN("printi");
   _pf.EXTERN("prints");
   _pf.EXTERN("println");
+  
+  _symtab.pop();
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl) {
-  // FIXME
   ASSERT_SAFE_EXPRESSIONS;
+  _returnSeen = true; // Mark that a return was seen
   if (_function->type()->name() != cdk::TYPE_VOID) {
-    node->retval()->accept(this, lvl + 2);
-    if (_function->type()->name() == cdk::TYPE_INT || _function->type()->name() == cdk::TYPE_STRING
-        || _function->type()->name() == cdk::TYPE_POINTER) {
-      _pf.STFVAL32();
-    } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
-      if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
-      _pf.STFVAL64();
+    if (!node->retval()) {
+      _pf.INT(0); // Default return value if none provided
     } else {
-      std::cerr << "ERROR: Unsupported return type at line " << node->lineno() << std::endl;
+      node->retval()->accept(this, lvl + 2);
+      if (_function->type()->name() == cdk::TYPE_INT || 
+          _function->type()->name() == cdk::TYPE_STRING || 
+          _function->type()->name() == cdk::TYPE_POINTER) {
+        _pf.STFVAL32();
+      } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
+        if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+        _pf.STFVAL64();
+      } else {
+        std::cerr << "ERROR: Unsupported return type at line " << node->lineno() << std::endl;
+        exit(1);
+      }
     }
   }
   _pf.JMP(_currentBodyRetLabel);
-  _returnSeen = true;
 }
 
 //---------------------------------------------------------------------------
@@ -440,8 +456,12 @@ void udf::postfix_writer::do_index_node(udf::index_node * const node, int lvl) {
 
 void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {
   _symtab.push();
-  node->declarations()->accept(this, lvl + 2);
-  node->instructions()->accept(this, lvl + 2);
+  if (node->declarations()) {
+    node->declarations()->accept(this, lvl + 2);
+  }
+  if (node->instructions()) {
+    node->instructions()->accept(this, lvl + 2);
+  }
   _symtab.pop();
 }
 

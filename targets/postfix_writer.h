@@ -20,7 +20,7 @@ namespace udf {
 
     bool _returnSeen; // when building a function
 
-    std::shared_ptr<udf::symbol> _function; // for keeping track of the current function and its arguments
+    udf::function_definition_node* _function; // for keeping track of the current function and its arguments
 
     std::string _currentBodyRetLabel; // where to jump when a return occurs of an exclusive section ends
 
