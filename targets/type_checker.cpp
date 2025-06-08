@@ -182,11 +182,15 @@ void udf::type_checker::do_block_node(udf::block_node *const node, int lvl) {
 }
 
 void udf::type_checker::do_continue_node(udf::continue_node *const node, int lvl) {
-  // EMPTY
+  if (!_inLoop) { // FIXME: is this needed?
+    throw std::string("continue statement outside loop at line " + std::to_string(node->lineno()));
+  }
 }
 
 void udf::type_checker::do_break_node(udf::break_node *const node, int lvl) {
-  // EMPTY
+  if (!_inLoop) { // FIXME: is this needed?
+    throw std::string("break statement outside loop at line " + std::to_string(node->lineno()));
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -450,10 +454,22 @@ void udf::type_checker::do_input_node(udf::input_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
-  // TODO: fix this
-  // node->init()->accept(this, lvl + 4);
-  // node->condition()->accept(this, lvl + 4);
-  // node->increment()->accept(this, lvl + 4);
+  _symtab.push();
+  _inLoop = true;
+  if (node->declaration())
+    node->declaration()->accept(this, lvl + 2);
+  if (node->condition()) {
+    node->condition()->accept(this, lvl + 2);
+    auto cond_expr = dynamic_cast<cdk::expression_node*>(node->condition());
+    if (!cond_expr || !cond_expr->is_typed(cdk::TYPE_INT))
+      throw std::string("for loop condition must be an integer at line " + std::to_string(node->lineno()));
+  }
+  if (node->increment()) node->increment()->accept(this, lvl + 2);
+  
+  if (node->block()) node->block()->accept(this, lvl + 2);
+
+  _inLoop = false;
+  _symtab.pop();
 }
 
 //---------------------------------------------------------------------------

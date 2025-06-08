@@ -12,6 +12,8 @@ namespace udf {
 
     basic_ast_visitor *_parent;
 
+    bool _inLoop = false; // Tracks if inside a loop
+
   public:
     type_checker(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab, basic_ast_visitor *parent) :
         basic_ast_visitor(compiler), _symtab(symtab), _parent(parent) {
