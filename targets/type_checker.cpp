@@ -214,7 +214,12 @@ void udf::type_checker::do_nullptr_node(udf::nullptr_node *const node, int lvl) 
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_alloc_node(udf::alloc_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl + 2);
+  if (!node->argument()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("objects argument must be an integer at line " + std::to_string(node->lineno()));
+  }
+  node->type(cdk::reference_type::create(4, cdk::primitive_type::create(0, cdk::TYPE_UNSPEC)));
 }
 
 //---------------------------------------------------------------------------
@@ -294,11 +299,31 @@ void udf::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
     throw std::string("wrong type in unary logical expression");
   }
 }
+
 void udf::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
-  // TODO
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  if (!node->left()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("left argument of && must be an integer at line " + std::to_string(node->lineno()));
+  }
+  node->right()->accept(this, lvl + 2);
+  if (!node->right()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("right argument of && must be an integer at line " + std::to_string(node->lineno()));
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
+
 void udf::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
-  // TODO
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  if (!node->left()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("left argument of || must be an integer at line " + std::to_string(node->lineno()));
+  }
+  node->right()->accept(this, lvl + 2);
+  if (!node->right()->is_typed(cdk::TYPE_INT)) {
+    throw std::string("right argument of || must be an integer at line " + std::to_string(node->lineno()));
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
 //---------------------------------------------------------------------------
@@ -364,7 +389,48 @@ void udf::type_checker::do_return_node(udf::return_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+  if (node->initializer() != nullptr) {
+    node->initializer()->accept(this, lvl + 2);
+
+    if (node->is_typed(cdk::TYPE_INT)) {
+      if (!node->initializer()->is_typed(cdk::TYPE_INT))
+        throw std::string("wrong type for initializer (integer expected).");
+
+    } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
+      if (!node->initializer()->is_typed(cdk::TYPE_INT) && !node->initializer()->is_typed(cdk::TYPE_DOUBLE))
+        throw std::string("wrong type for initializer (integer or double expected).");
+
+    } else if (node->is_typed(cdk::TYPE_STRING)) {
+      if (!node->initializer()->is_typed(cdk::TYPE_STRING))
+        throw std::string("wrong type for initializer (string expected).");
+
+    } else if (node->is_typed(cdk::TYPE_POINTER)) {
+      if (!node->initializer()->is_typed(cdk::TYPE_POINTER)) { // FIXME
+        auto in = (cdk::literal_node<int> *)node->initializer();
+        if (in == nullptr || in->value() != 0)
+          throw std::string("wrong type for initializer (pointer expected).");
+      }
+
+    } else if (node->is_typed(cdk::TYPE_TENSOR)) {
+      if (!node->initializer()->is_typed(cdk::TYPE_TENSOR))
+        throw std::string("wrong type for initializer (tesnor expected).");
+
+    } else {
+      throw std::string("unknown type for initializer.");
+    }
+  }
+
+  // TODO: Check for redefinition
+  // const std::string &id = node->identifier();
+  // auto symbol = std::make_shared<udf::symbol>(false, node->qualifier(), node->type(), id, (bool)node->initializer(), false);  if (_symtab.insert(id, symbol))
+  // {
+  //   _parent->set_new_symbol(symbol); // advise parent that a symbol has been inserted
+  // }
+  // else
+  // {
+  //   throw std::string("variable '" + id + "' redeclared");
+  // }
 }
 
 //---------------------------------------------------------------------------
