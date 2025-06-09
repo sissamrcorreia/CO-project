@@ -163,32 +163,35 @@ void udf::type_checker::do_index_node(udf::index_node * const node, int lvl) {
     btype = cdk::reference_type::cast(node->base()->type());
     if (!node->base()->is_typed(cdk::TYPE_POINTER))
       throw std::string("pointer expression expected in index left-value");
+  } else {
+    btype = cdk::reference_type::cast(_function->type());
+    if (!_function->is_typed(cdk::TYPE_POINTER))
+      throw std::string("return pointer expression expected in index left-value");
+    throw std::string("index node without base is not supported");
   }
-  // else {
-  //   btype = cdk::reference_type::cast(_function->type());
-  //   if (!_function->is_typed(cdk::TYPE_POINTER))
-  //     throw std::string("return pointer expression expected in index left-value");
-  // }
 
   node->index()->accept(this, lvl + 2);
   if (!node->index()->is_typed(cdk::TYPE_INT))
     throw std::string("integer expression expected in left-value index");
 
-  // node->type(btype->referenced());
+  // Set the type of this node to the type pointed to by the pointer
+  node->type(btype->referenced());
 }
+
+//---------------------------------------------------------------------------
 
 void udf::type_checker::do_block_node(udf::block_node *const node, int lvl) {
   // EMPTY
 }
 
 void udf::type_checker::do_continue_node(udf::continue_node *const node, int lvl) {
-  if (!_inLoop) { // FIXME: is this needed?
+  if (!_inLoop) {
     throw std::string("continue statement outside loop at line " + std::to_string(node->lineno()));
   }
 }
 
 void udf::type_checker::do_break_node(udf::break_node *const node, int lvl) {
-  if (!_inLoop) { // FIXME: is this needed?
+  if (!_inLoop) {
     throw std::string("break statement outside loop at line " + std::to_string(node->lineno()));
   }
 }

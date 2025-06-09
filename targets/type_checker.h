@@ -9,6 +9,7 @@ namespace udf {
    */
   class type_checker: public basic_ast_visitor {
     cdk::symbol_table<udf::symbol> &_symtab;
+    udf::function_definition_node* _function;
 
     basic_ast_visitor *_parent;
 
