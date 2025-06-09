@@ -24,11 +24,19 @@ void udf::postfix_writer::do_sequence_node(cdk::sequence_node * const node, int 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_double_node(cdk::double_node * const node, int lvl) {
-  _pf.DOUBLE(node->value()); // push a double
+  if (_inFunctionBody) {
+    _pf.DOUBLE(node->value()); // push a double
+  } else {
+    _pf.SDOUBLE(node->value());    // double is on the DATA segment
+  }
 }
 
 void udf::postfix_writer::do_integer_node(cdk::integer_node * const node, int lvl) {
-  _pf.INT(node->value()); // push an integer
+  if (_inFunctionBody) {
+    _pf.INT(node->value()); // push an integer
+  } else {
+    _pf.SINT(node->value()); // integer literal is on the DATA segment
+  }
 }
 
 void udf::postfix_writer::do_string_node(cdk::string_node * const node, int lvl) {
@@ -41,8 +49,15 @@ void udf::postfix_writer::do_string_node(cdk::string_node * const node, int lvl)
   _pf.SSTRING(node->value()); // output string characters
 
   /* leave the address on the stack */
-  _pf.TEXT(); // return to the TEXT segment
-  _pf.ADDR(mklbl(lbl1)); // the string to be printed
+  if (_function) {
+    // local variable initializer
+    _pf.TEXT();
+    _pf.ADDR(mklbl(lbl1));
+  } else {
+    // global variable initializer
+    _pf.DATA();
+    _pf.SADDR(mklbl(lbl1));
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -63,7 +78,7 @@ void udf::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
   node->argument()->accept(this, lvl + 2);
   _pf.INT(0);
   _pf.EQ();
-  _pf.NOT();
+  //_pf.NOT();
 }
 
 //---------------------------------------------------------------------------
@@ -659,7 +674,12 @@ void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_nullptr_node(udf::nullptr_node * const node, int lvl) {
- // TODO: implement this
+  ASSERT_SAFE_EXPRESSIONS; // a pointer is a 32-bit integer
+  if (_inFunctionBody) {
+    _pf.INT(0);
+  } else {
+    _pf.SINT(0);
+  }
 }
 
 //---------------------------------------------------------------------------

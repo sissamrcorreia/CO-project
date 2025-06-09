@@ -19,6 +19,7 @@ namespace udf {
 
     std::set<std::string> _functions_to_declare;
 
+    bool _inFunctionBody;
     bool _inForInit;
     std::stack<int> _forIni, _forStep, _forEnd; // for break/repeat
 
