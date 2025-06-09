@@ -336,7 +336,6 @@ void udf::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_variable_node(cdk::variable_node *const node, int lvl) {
-  // TODO: review this
   ASSERT_UNSPEC;
   const std::string &id = node->name();
   std::shared_ptr<udf::symbol> symbol = _symtab.find(id);
@@ -344,7 +343,7 @@ void udf::type_checker::do_variable_node(cdk::variable_node *const node, int lvl
   if (symbol != nullptr) {
     node->type(symbol->type());
   } else {
-    throw id;
+    throw std::string("undeclared variable '" + id + "'");
   }
 }
 
@@ -382,7 +381,21 @@ void udf::type_checker::do_assignment_node(cdk::assignment_node *const node, int
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_function_declaration_node(udf::function_declaration_node *const node, int lvl) {
-  // TODO: implement this
+  const std::string &id = node->identifier();
+  auto function = std::make_shared<udf::symbol>(node->type(), id, 0);
+
+  // Check for previous declaration
+  std::shared_ptr<udf::symbol> previous = _symtab.find(id);
+  if (previous) {
+    // Only check type, since argument types are not stored in symbol
+    if (function->type() != previous->type()) {
+      throw std::string("conflicting declaration for '" + id + "'");
+    }
+    // Already declared, nothing to do
+  } else {
+    _symtab.insert(id, function);
+    _parent->set_new_symbol(function);
+  }
 }
 
 void udf::type_checker::do_function_definition_node(udf::function_definition_node *const node, int lvl) {
