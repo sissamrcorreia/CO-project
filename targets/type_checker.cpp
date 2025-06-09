@@ -425,16 +425,14 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
     }
   }
 
-  // TODO: Check for redefinition
-  // const std::string &id = node->identifier();
-  // auto symbol = std::make_shared<udf::symbol>(false, node->qualifier(), node->type(), id, (bool)node->initializer(), false);  if (_symtab.insert(id, symbol))
-  // {
-  //   _parent->set_new_symbol(symbol); // advise parent that a symbol has been inserted
-  // }
-  // else
-  // {
-  //   throw std::string("variable '" + id + "' redeclared");
-  // }
+  // TODO: Check for redefinition: revisit this
+  const std::string &id = node->identifier();
+  auto symbol = std::make_shared<udf::symbol>(node->type(), id, (bool)node->initializer());
+  if (_symtab.insert(id, symbol)) {
+    _parent->set_new_symbol(symbol); // advise parent that a symbol has been inserted
+  } else {
+    throw std::string("variable '" + id + "' redeclared");
+  }
 }
 
 //---------------------------------------------------------------------------
