@@ -10,7 +10,6 @@ namespace udf {
     std::shared_ptr<cdk::basic_type> _type;
     std::string _name;
     long _value; // hack!
-    int _offset = 0; // offset in the stack frame, 0 means global variable
 
   public:
     symbol(std::shared_ptr<cdk::basic_type> type, const std::string &name, long value) :
@@ -35,12 +34,6 @@ namespace udf {
     }
     long value(long v) {
       return _value = v;
-    }
-    int offset() const {
-      return _offset;
-    }
-    void set_offset(int offset) {
-      _offset = offset;
     }
   };
 
