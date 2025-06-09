@@ -25,7 +25,7 @@ static std::ostringstream strlit;
 
 #define CHECK_STOD(base) {                     \
   try {                                        \
-    yylval.i = std::stod(std::string(yytext)); \
+    yylval.d = std::stod(std::string(yytext)); \
     return tREAL;                              \
   } catch (std::out_of_range const& ex) {      \
     yyerror("Real overflow");                  \

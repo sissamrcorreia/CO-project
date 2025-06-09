@@ -9,9 +9,10 @@ namespace udf {
    */
   class type_checker: public basic_ast_visitor {
     cdk::symbol_table<udf::symbol> &_symtab;
-    udf::function_definition_node* _function;
+    std::shared_ptr<udf::symbol> _function;
 
     basic_ast_visitor *_parent;
+    std::shared_ptr<cdk::basic_type> _inBlockReturnType = nullptr;
 
     bool _inLoop = false; // Tracks if inside a loop
 

@@ -3,6 +3,10 @@
 #include ".auto/all_nodes.h"  // automatically generated
 #include <cdk/types/primitive_type.h>
 
+// must come after other #includes
+#include "udf_parser.tab.h"
+
+
 #define ASSERT_UNSPEC { if (node->type() != nullptr && !node->is_typed(cdk::TYPE_UNSPEC)) return; }
 
 //---------------------------------------------------------------------------
@@ -363,7 +367,14 @@ void udf::type_checker::do_assignment_node(cdk::assignment_node *const node, int
   try {
     node->lvalue()->accept(this, lvl);
   } catch (const std::string &id) {
-    auto symbol = std::make_shared<udf::symbol>(cdk::primitive_type::create(4, cdk::TYPE_INT), id, 0);
+    auto symbol = std::make_shared<udf::symbol>(
+      false,                // constant
+      0,                    // qualifier
+      cdk::primitive_type::create(4, cdk::TYPE_INT), // type
+      id,                   // name
+      false,                // initialized
+      false                 // function
+    );
     _symtab.insert(id, symbol);
     _parent->set_new_symbol(symbol);  // advise parent that a symbol has been inserted
     node->lvalue()->accept(this, lvl);
@@ -381,25 +392,92 @@ void udf::type_checker::do_assignment_node(cdk::assignment_node *const node, int
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_function_declaration_node(udf::function_declaration_node *const node, int lvl) {
-  const std::string &id = node->identifier();
-  auto function = std::make_shared<udf::symbol>(node->type(), id, 0);
+  std::string id;
 
-  // Check for previous declaration
-  std::shared_ptr<udf::symbol> previous = _symtab.find(id);
-  if (previous) {
-    // Only check type, since argument types are not stored in symbol
-    if (function->type() != previous->type()) {
-      throw std::string("conflicting declaration for '" + id + "'");
+  // "fix" naming issues...
+  if (node->identifier() == "udf")
+    id = "_main";
+  else if (node->identifier() == "_main")
+    id = "._main";
+  else
+    id = node->identifier();
+
+  // remember symbol so that args know
+  auto function = std::make_shared<udf::symbol>(
+    false,                // constant
+    0,                    // qualifier
+    node->type(),         // type
+    id,                   // name
+    false,                // initialized
+    true                  // function
+  );
+
+  std::vector<std::shared_ptr<cdk::basic_type>> argtypes;
+  for (size_t ax = 0; ax < node->arguments()->size(); ax++)
+    argtypes.push_back(node->argument(ax)->type());
+  function->set_argument_types(argtypes);
+
+  std::shared_ptr<udf::symbol> previous = _symtab.find(function->name());
+  if (previous)
+  {
+    if (false /*FIXME: should verify fields*/)
+    {
+      throw std::string("conflicting declaration for '" + function->name() + "'");
     }
-    // Already declared, nothing to do
-  } else {
-    _symtab.insert(id, function);
+  }
+  else
+  {
+    _symtab.insert(function->name(), function);
     _parent->set_new_symbol(function);
   }
 }
 
 void udf::type_checker::do_function_definition_node(udf::function_definition_node *const node, int lvl) {
-  // TODO: implement this
+  std::string id;
+
+  // "fix" naming issues...
+  if (node->identifier() == "udf")
+    id = "_main";
+  else if (node->identifier() == "_main")
+    id = "._main";
+  else
+    id = node->identifier();
+
+  _inBlockReturnType = nullptr;
+
+  // remember symbol so that args know
+  auto function = std::make_shared<udf::symbol>(
+    false,                // constant
+    0,                    // qualifier
+    node->type(),         // type
+    id,                   // name
+    false,                // initialized
+    true                  // function
+  );
+
+  std::vector<std::shared_ptr<cdk::basic_type>> argtypes;
+  for (size_t ax = 0; ax < node->arguments()->size(); ax++)
+    argtypes.push_back(node->argument(ax)->type());
+  function->set_argument_types(argtypes);
+
+  std::shared_ptr<udf::symbol> previous = _symtab.find(function->name());
+  if (previous)
+  {
+    if (previous->forward() && ((previous->qualifier() == tPUBLIC && node->qualifier() == tPUBLIC) || (previous->qualifier() == tPRIVATE && node->qualifier() == tPRIVATE)))
+    {
+      _symtab.replace(function->name(), function);
+      _parent->set_new_symbol(function);
+    }
+    else
+    {
+      throw std::string("conflicting definition for '" + function->name() + "'");
+    }
+  }
+  else
+  {
+    _symtab.insert(function->name(), function);
+    _parent->set_new_symbol(function);
+  }
 }
 
 void udf::type_checker::do_return_node(udf::return_node *const node, int lvl) {
@@ -441,9 +519,15 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
     }
   }
 
-  // TODO: Check for redefinition: revisit this
   const std::string &id = node->identifier();
-  auto symbol = std::make_shared<udf::symbol>(node->type(), id, (bool)node->initializer());
+  auto symbol = std::make_shared<udf::symbol>(
+  false,                // constant
+  0,                    // qualifier
+  node->type(),         // type
+  id,                   // name
+  (bool)node->initializer(), // initialized
+  false                 // function
+);
   if (_symtab.insert(id, symbol)) {
     _parent->set_new_symbol(symbol); // advise parent that a symbol has been inserted
   } else {
@@ -503,7 +587,55 @@ void udf::type_checker::do_if_else_node(udf::if_else_node *const node, int lvl) 
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_function_call_node(udf::function_call_node *const node, int lvl) {
-  // TODO: implement this
+  ASSERT_UNSPEC;
+
+  const std::string &id = node->identifier();
+  auto symbol = _symtab.find(id);
+  if (symbol == nullptr)
+    throw std::string("symbol '" + id + "' is undeclared.");
+  if (!symbol->isFunction())
+    throw std::string("symbol '" + id + "' is not a function.");
+
+  if (symbol->is_typed(cdk::TYPE_STRUCT))
+  {
+    // declare return variable for passing to function call
+    const std::string return_var_name = "$return_" + id;
+    auto return_symbol = std::make_shared<udf::symbol>(
+      false,                // constant
+      0,                    // qualifier
+      symbol->type(),       // type
+      return_var_name,      // name
+      false,                // initialized
+      false                 // function
+    );
+    if (_symtab.insert(return_var_name, return_symbol))
+    {
+    }
+    else
+    {
+      // if already declared, ignore new insertion
+    }
+  }
+
+  node->type(symbol->type());
+
+  if (node->arguments()->size() == symbol->number_of_arguments())
+  {
+    node->arguments()->accept(this, lvl + 4);
+    for (size_t ax = 0; ax < node->arguments()->size(); ax++)
+    {
+      if (node->argument(ax)->type() == symbol->argument_type(ax))
+        continue;
+      if (symbol->argument_is_typed(ax, cdk::TYPE_DOUBLE) && node->argument(ax)->is_typed(cdk::TYPE_INT))
+        continue;
+      throw std::string("type mismatch for argument " + std::to_string(ax + 1) + " of '" + id + "'.");
+    }
+  }
+  else
+  {
+    throw std::string(
+        "number of arguments in call (" + std::to_string(node->arguments()->size()) + ") must match declaration (" + std::to_string(symbol->number_of_arguments()) + ").");
+  }
 }
 
 //---------------------------------------------------------------------------

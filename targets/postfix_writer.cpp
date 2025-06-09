@@ -2,7 +2,11 @@
 #include <sstream>
 #include "targets/type_checker.h"
 #include "targets/postfix_writer.h"
+#include "targets/frame_size_calculator.h"
+#include "targets/symbol.h"
 #include ".auto/all_nodes.h"  // all_nodes.h is automatically generated
+// must come after other #includes
+#include "udf_parser.tab.h"
 
 //---------------------------------------------------------------------------
 
@@ -391,63 +395,85 @@ void udf::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
-  // TODO: revisit this
   ASSERT_SAFE_EXPRESSIONS;
-  reset_new_symbol();
-  _symtab.push();
-  if (node->arguments()) {
-    node->arguments()->accept(this, lvl + 2);
+
+  if (_inFunctionBody || _inFunctionArgs) {
+    std::cerr << "ERROR: cannot declare function in body or in args" << std::endl;
+    return;
   }
-  _symtab.pop();
+
+  if (!new_symbol()) return;
+
+  auto function = new_symbol();
+  _functions_to_declare.insert(function->name());
+  reset_new_symbol();
 }
 
 void udf::postfix_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
+  if (_inFunctionBody || _inFunctionArgs) {
+    std::cerr << "ERROR: cannot define function in body or in args" << std::endl;
+    return;
+  }
+
+  // remember symbol so that args and body know
+  _function = new_symbol();
+  _functions_to_declare.erase(_function->name());
+  reset_new_symbol();
+
+  _currentBodyRetLabel = mklbl(++_lbl);
+
+  _offset = 8; // prepare for arguments (4: remember to account for return address)
+  _symtab.push(); // scope of args
+
+  if (node->arguments()->size() > 0) {
+    _inFunctionArgs = true; //FIXME
+    for (size_t ix = 0; ix < node->arguments()->size(); ix++) {
+      cdk::basic_node *arg = node->arguments()->node(ix);
+      if (arg == nullptr) break; // this means an empty sequence of arguments
+      arg->accept(this, 0); // the function symbol is at the top of the stack
+    }
+    _inFunctionArgs = false; //FIXME
+  }
+
   _pf.TEXT();
   _pf.ALIGN();
-  std::string func_name = (node->identifier() == "main" || node->identifier() == "udf") ? "_main" : node->identifier();
-  _pf.GLOBAL(func_name, _pf.FUNC());
-  _pf.LABEL(func_name);
-  _pf.ENTER(0); // Set up stack frame (0 bytes for local variables)
-  _function = node;
-  _currentBodyRetLabel = func_name + "_ret";
-  _returnSeen = false; // Initialize return flag
-  _symtab.push();
-  
-  // Handle arguments, if any
-  if (node->arguments()) {
-    node->arguments()->accept(this, lvl + 2);
-  }
-  
-  // Handle block, even if empty
-  if (node->block()) {
-    node->block()->accept(this, lvl + 2);
-  }
-  
-  // Ensure a return for non-void functions if none was seen
-  if (!_returnSeen && node->type() && node->type()->name() != cdk::TYPE_VOID) {
-    _pf.INT(0); // Default return value of 0
-    _pf.STFVAL32();
-  }
-  
+  if (node->qualifier() == tPUBLIC) _pf.GLOBAL(_function->name(), _pf.FUNC());
+  _pf.LABEL(_function->name());
+
+  // compute stack size to be reserved for local variables
+  frame_size_calculator lsc(_compiler, _symtab, _function);
+  node->accept(&lsc, lvl);
+  _pf.ENTER(lsc.localsize()); // total stack size reserved for local variables
+
+  _offset = 0; // prepare for local variable
+
+  // FIXME: the following flag is a slight hack: it won't work with nested functions
+  _inFunctionBody = true;
+  os() << "        ;; before body " << std::endl;
+  node->block()->accept(this, lvl + 4); // block has its own scope
+  os() << "        ;; after body " << std::endl;
+  _inFunctionBody = false;
+  _returnSeen = false;
+
   _pf.LABEL(_currentBodyRetLabel);
   _pf.LEAVE();
   _pf.RET();
-  
-  // Declare external functions if needed
-  _pf.EXTERN("readi");
-  _pf.EXTERN("printi");
-  _pf.EXTERN("prints");
-  _pf.EXTERN("println");
-  
-  _symtab.pop();
+
+  _symtab.pop(); // scope of arguments
+
+  if (node->identifier() == "udf") {
+    // declare external functions
+    for (std::string s : _functions_to_declare)
+      _pf.EXTERN(s);
+  }
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  _returnSeen = true; // Mark that a return was seen
+
   if (_function->type()->name() != cdk::TYPE_VOID) {
     if (!node->retval()) {
       _pf.INT(0); // Default return value if none provided
@@ -463,18 +489,116 @@ void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl)
         _pf.STFVAL64();
       } else {
         std::cerr << "ERROR: Unsupported return type at line " << node->lineno() << std::endl;
-        exit(1);
       }
     }
   }
-  _pf.LEAVE();
-  _pf.RET();
+  _pf.JMP(_currentBodyRetLabel);
+  _returnSeen = true;
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration_node * const node, int lvl) {
-  // TODO: implement this
+  ASSERT_SAFE_EXPRESSIONS;
+  auto id = node->identifier();
+  std::cout << "INITIAL OFFSET: " << _offset << std::endl;
+  // type size?
+  int offset = 0, typesize = node->type()->size(); // in bytes
+  std::cout << "ARG: " << id << ", " << typesize << std::endl;
+  if (_inFunctionBody) {
+    std::cout << "IN BODY" << std::endl;
+    _offset -= typesize;
+    offset = _offset;
+  } else if (_inFunctionArgs) {
+    std::cout << "IN ARGS" << std::endl;
+    offset = _offset;
+    _offset += typesize;
+  } else {
+    std::cout << "GLOBAL!" << std::endl;
+    offset = 0; // global variable
+  }
+  std::cout << "OFFSET: " << id << ", " << offset << std::endl;
+  auto symbol = new_symbol();
+  if (symbol) {
+    symbol->set_offset(offset);
+    reset_new_symbol();
+  }
+  if (_inFunctionBody) {
+    // if we are dealing with local variables, then no action is needed
+    // unless an initializer exists
+    if (node->initializer()) {
+      node->initializer()->accept(this, lvl);
+      if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER)) {
+        _pf.LOCAL(symbol->offset());
+        _pf.STINT();
+      } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
+        if (node->initializer()->is_typed(cdk::TYPE_INT))
+          _pf.I2D();
+        _pf.LOCAL(symbol->offset());
+        _pf.STDOUBLE();
+      } else if (node->is_typed(cdk::TYPE_TENSOR)) {
+        // single var initialized with tensor
+        // FIXME
+      } else {
+        std::cerr << "cannot initialize" << std::endl;
+      }
+    }
+  } else { //TODO tensor
+    if (!_function) {
+      if (node->initializer() == nullptr) {
+        _pf.BSS();
+        _pf.ALIGN();
+        _pf.LABEL(id);
+        _pf.SALLOC(typesize);
+      } else {
+        if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_DOUBLE) || node->is_typed(cdk::TYPE_POINTER)) {
+          if (false) { // FIXME era node->isConstant()
+            _pf.RODATA();
+          } else {
+            _pf.DATA();
+          }
+          _pf.ALIGN();
+          _pf.LABEL(id);
+          if (node->is_typed(cdk::TYPE_INT)) {
+            node->initializer()->accept(this, lvl);
+          } else if (node->is_typed(cdk::TYPE_POINTER)) {
+            node->initializer()->accept(this, lvl);
+          } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
+            if (node->initializer()->is_typed(cdk::TYPE_DOUBLE)) {
+              node->initializer()->accept(this, lvl);
+            } else if (node->initializer()->is_typed(cdk::TYPE_INT)) {
+              cdk::integer_node *dclini = dynamic_cast<cdk::integer_node*>(node->initializer());
+              cdk::double_node ddi(dclini->lineno(), dclini->value());
+              ddi.accept(this, lvl);
+            } else {
+              std::cerr << node->lineno() << ": '" << id << "' has bad initializer for real value\n";
+              _errors = true;
+            }
+          }
+        } else if (node->is_typed(cdk::TYPE_STRING)) {
+          if (false) { // FIXME era node->isConstant()
+            int litlbl;
+            // FIXME: string literal initializers must be emitted before the string identifier
+            _pf.RODATA();
+            _pf.ALIGN();
+            _pf.LABEL(mklbl(litlbl = ++_lbl));
+            _pf.SSTRING(dynamic_cast<cdk::string_node*>(node->initializer())->value());
+            _pf.ALIGN();
+            _pf.LABEL(id);
+            _pf.SADDR(mklbl(litlbl));
+          } else {
+            _pf.DATA();
+            _pf.ALIGN();
+            _pf.LABEL(id);
+            node->initializer()->accept(this, lvl);
+          }
+        } else {
+          std::cerr << node->lineno() << ": '" << id << "' has unexpected initializer\n";
+          _errors = true;
+        }
+      }
+    }
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -532,18 +656,23 @@ void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_input_node(udf::input_node * const node, int lvl) {
-  // TODO: implement this
-  // ASSERT_SAFE_EXPRESSIONS;
-  // _pf.CALL("inputi");
-  // _pf.LDFVAL32();
-  // node->argument()->accept(this, lvl);
-  // _pf.STINT();
+  if (_lvalueType == cdk::TYPE_DOUBLE) {
+    _functions_to_declare.insert("readd");
+    _pf.CALL("readd");
+    _pf.LDFVAL64();
+  } else if (_lvalueType == cdk::TYPE_INT) {
+    _functions_to_declare.insert("readi");
+    _pf.CALL("readi");
+    _pf.LDFVAL32();
+  } else {
+    std::cerr << "FATAL: " << node->lineno() << ": cannot read type" << std::endl;
+    return;
+  }
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_for_node(udf::for_node * const node, int lvl) {
-  // TODO: revisit this
   ASSERT_SAFE_EXPRESSIONS;
 
   _forIni.push(++_lbl); // after init, before body
@@ -620,48 +749,50 @@ void udf::postfix_writer::do_if_else_node(udf::if_else_node * const node, int lv
 
 void udf::postfix_writer::do_function_call_node(udf::function_call_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  if (node->arguments()) {
-    for (size_t i = 0; i < node->arguments()->size(); i++) {
-      auto arg = dynamic_cast<cdk::expression_node*>(node->arguments()->node(i));
+  auto symbol = _symtab.find(node->identifier());
+
+  size_t argsSize = 0;
+  if (node->arguments()->size() > 0) {
+    for (int ax = node->arguments()->size() - 1; ax >= 0; ax--) {
+      cdk::expression_node *arg = dynamic_cast<cdk::expression_node*>(node->arguments()->node(ax));
       arg->accept(this, lvl + 2);
-      if (arg->type()->name() == cdk::TYPE_INT || arg->type()->name() == cdk::TYPE_STRING || arg->type()->name() == cdk::TYPE_TENSOR) {
-        // 32-bit arguments (int, string, tensor)
-      } else if (arg->type()->name() == cdk::TYPE_DOUBLE) {
-        // 64-bit double
-      } else {
-        std::cerr << "ERROR: Unsupported argument type for function call at line " << node->lineno() << std::endl;
-        exit(1);
+      if (symbol->argument_is_typed(ax, cdk::TYPE_DOUBLE) && arg->is_typed(cdk::TYPE_INT)) {
+        _pf.I2D();
       }
+      argsSize += symbol->argument_size(ax);
     }
   }
-  std::string func_name = node->identifier() == "main" ? "_main" : node->identifier();
-  _pf.CALL(func_name);
-  if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER) || node->is_typed(cdk::TYPE_TENSOR)) {
+  _pf.CALL(node->identifier());
+  if (argsSize != 0) {
+    _pf.TRASH(argsSize);
+  }
+
+  if (symbol->is_typed(cdk::TYPE_INT) || symbol->is_typed(cdk::TYPE_POINTER) || symbol->is_typed(cdk::TYPE_STRING)) {
     _pf.LDFVAL32();
-  } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
+  } else if (symbol->is_typed(cdk::TYPE_DOUBLE)) {
     _pf.LDFVAL64();
-  } else if (!node->is_typed(cdk::TYPE_VOID)) {
-    std::cerr << "ERROR: Unsupported return type for function call '" << func_name << "' at line " << node->lineno() << std::endl;
-    exit(1);
+  } else {
+    // cannot happen!
   }
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_index_node(udf::index_node * const node, int lvl) {
-  // TODO: implement this
-  // ASSERT_SAFE_EXPRESSIONS;
-  // node->base()->accept(this, lvl + 2);
-  // auto indices = node->index();
-  // for (size_t i = 0; i < indices->size(); i++) {
-  //   indices->node(i)->accept(this, lvl + 2);
-  // }
-  // if (node->base()->is_typed(cdk::TYPE_TENSOR)) {
-  //   _pf.CALL("tensor_get");
-  //   _pf.LDFVAL64();
-  // } else {
-  //   _pf.LDINT();
-  // }
+  ASSERT_SAFE_EXPRESSIONS;
+  if (node->base()) {
+    node->base()->accept(this, lvl);
+  } else {
+    if (_function) {
+      _pf.LOCV(-_function->type()->size());
+    } else {
+      std::cerr << "FATAL: " << node->lineno() << ": trying to use return value outside function" << std::endl;
+    }
+  }
+  node->index()->accept(this, lvl);
+  _pf.INT(3);
+  _pf.SHTL();
+  _pf.ADD(); // add pointer and index
 }
 
 void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {

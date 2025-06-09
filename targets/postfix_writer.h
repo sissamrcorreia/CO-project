@@ -19,20 +19,20 @@ namespace udf {
 
     std::set<std::string> _functions_to_declare;
 
-    bool _inFunctionBody;
+    bool _errors, _inFunction, _inFunctionName, _inFunctionArgs, _inFunctionBody;
     bool _inForInit;
     std::stack<int> _forIni, _forStep, _forEnd; // for break/repeat
-
     bool _returnSeen; // when building a function
-
-    udf::function_definition_node* _function; // for keeping track of the current function and its arguments
-
+    std::shared_ptr<udf::symbol> _function; // for keeping track of the current function and its arguments
+    int _offset; // current framepointer offset (0 means no vars defined)
     std::string _currentBodyRetLabel; // where to jump when a return occurs of an exclusive section ends
+    cdk::typename_type _lvalueType;
+
 
   public:
-    postfix_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab,
-                   cdk::basic_postfix_emitter &pf) :
-        basic_ast_visitor(compiler), _symtab(symtab), _pf(pf), _lbl(0) {
+    postfix_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab, cdk::basic_postfix_emitter &pf) :
+        basic_ast_visitor(compiler), _symtab(symtab), _pf(pf), _lbl(0), _functions_to_declare(), _errors(false), _inFunction(false), _inFunctionName(false), _inFunctionArgs(
+            false), _inFunctionBody(false), _inForInit(false), _forIni(), _forStep(), _forEnd(), _returnSeen(false), _function(nullptr), _offset(0), _currentBodyRetLabel("") {
     }
 
   public:
