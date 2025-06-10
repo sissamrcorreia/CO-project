@@ -10,9 +10,11 @@ namespace udf {
     int _offset = 0; // 0 (zero) means global variable/function
 
     std::string _name;
-    long _value; // hack!
+    int _value; // hack!
+    bool _constant;
     int _qualifier; // qualifiers: public, forward, "private" (i.e., none)
     std::shared_ptr<cdk::basic_type> _type;
+    bool _initialized;
     bool _function; // false for variables
     bool _forward = false;
     
@@ -22,7 +24,7 @@ namespace udf {
   public:
     symbol(bool constant, int qualifier, std::shared_ptr<cdk::basic_type> type, const std::string &name, bool initialized,
            bool function, bool forward = false) :
-        _name(name), _value(0), _qualifier(qualifier), _type(type), _function(
+        _name(name), _value(0), _constant(constant), _qualifier(qualifier), _type(type), _initialized(initialized), _function(
             function), _forward(forward) {
     }
 
@@ -39,11 +41,14 @@ namespace udf {
     const std::string &name() const {
       return _name;
     }
-    long value() const {
+    int value() const {
       return _value;
     }
-    long value(long v) {
+    int value(int v) {
       return _value = v;
+    }
+    bool constant() const {
+      return _constant;
     }
     int qualifier() const {
       return _qualifier;
@@ -84,6 +89,16 @@ namespace udf {
     void set_type(std::shared_ptr<cdk::basic_type> t) {
       _type = t;
     }
+
+    bool global() const {
+      return _offset == 0;
+    }
   };
+
+
+  inline auto make_symbol(bool constant, int qualifier, std::shared_ptr<cdk::basic_type> type, const std::string &name,
+                          bool initialized, bool function, bool forward = false) {
+    return std::make_shared<symbol>(constant, qualifier, type, name, initialized, function, forward);
+  }
 
 } // udf

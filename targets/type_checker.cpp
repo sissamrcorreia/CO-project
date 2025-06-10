@@ -11,6 +11,10 @@
 
 //---------------------------------------------------------------------------
 
+udf::type_checker::~type_checker() { os().flush(); }
+
+//---------------------------------------------------------------------------
+
 void udf::type_checker::do_sequence_node(cdk::sequence_node *const node, int lvl) {
   for (size_t i = 0; i < node->size(); i++)
     node->node(i)->accept(this, lvl);
@@ -235,69 +239,191 @@ void udf::type_checker::do_alloc_node(udf::alloc_node *const node, int lvl) {
 
 //---------------------------------------------------------------------------
 
-void udf::type_checker::processUnaryExpression(cdk::unary_operation_node *const node, int lvl) {
-  node->argument()->accept(this, lvl + 2);
-  if (!node->argument()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in argument of unary expression");
-
-  // in UDF, expressions are always int
-  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
-}
-
 void udf::type_checker::do_unary_minus_node(cdk::unary_minus_node *const node, int lvl) {
-  processUnaryExpression(node, lvl);
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl);
+  if (node->argument()->is_typed(cdk::TYPE_INT))
+  {
+    node->type(node->argument()->type());
+  }
+  else
+  {
+    throw std::string("numeric expression expected");
+  }
 }
 
 void udf::type_checker::do_unary_plus_node(cdk::unary_plus_node *const node, int lvl) {
-  processUnaryExpression(node, lvl);
+  ASSERT_UNSPEC;
+  node->argument()->accept(this, lvl);
+  if (node->argument()->is_typed(cdk::TYPE_INT))
+  {
+    node->type(node->argument()->type());
+  }
+  else
+  {
+    throw std::string("numeric expression expected");
+  }
 }
 
 //---------------------------------------------------------------------------
 
-void udf::type_checker::processBinaryExpression(cdk::binary_operation_node *const node, int lvl) {
+void udf::type_checker::do_IntOnlyExpression(cdk::binary_operation_node *const node, int lvl) {
   ASSERT_UNSPEC;
   node->left()->accept(this, lvl + 2);
-  if (!node->left()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in left argument of binary expression");
+  if (!node->left()->is_typed(cdk::TYPE_INT))
+  {
+    throw std::string("integer expression expected in binary operator (left)");
+  }
 
   node->right()->accept(this, lvl + 2);
-  if (!node->right()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in right argument of binary expression");
+  if (!node->right()->is_typed(cdk::TYPE_INT))
+  {
+    throw std::string("integer expression expected in binary operator (right)");
+  }
 
-  // in UDF, expressions are always int
   node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
 }
 
+void udf::type_checker::do_IDExpression(cdk::binary_operation_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  node->right()->accept(this, lvl + 2);
+
+  if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_DOUBLE))
+  {
+    node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT))
+  {
+    node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_DOUBLE))
+  {
+    node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT))
+  {
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC))
+  {
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  }
+  else
+  {
+    throw std::string("wrong types in binary expression");
+  }
+}
+
+void udf::type_checker::do_PIDExpression(cdk::binary_operation_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  node->right()->accept(this, lvl + 2);
+
+  if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_DOUBLE))
+  {
+    node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_INT))
+  {
+    node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_DOUBLE))
+  {
+    node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_POINTER) && node->right()->is_typed(cdk::TYPE_INT))
+  {
+    node->type(node->left()->type());
+  }
+  else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_POINTER))
+  {
+    node->type(node->right()->type());
+  }
+  else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT))
+  {
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  }
+  else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC))
+  {
+    node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  }
+  else
+  {
+    throw std::string("wrong types in binary expression");
+  }
+}
+
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_ScalarLogicalExpression(cdk::binary_operation_node *const node, int lvl)
+{
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  if (!node->left()->is_typed(cdk::TYPE_INT))
+  {
+    throw std::string("integer expression expected in binary logical expression (left)");
+  }
+
+  node->right()->accept(this, lvl + 2);
+  if (!node->right()->is_typed(cdk::TYPE_INT))
+  {
+    throw std::string("integer expression expected in binary logical expression (right)");
+  }
+
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+}
+
+void udf::type_checker::do_BooleanLogicalExpression(cdk::binary_operation_node *const node, int lvl)
+{
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  if (!node->left()->is_typed(cdk::TYPE_INT))
+  {
+    throw std::string("integer expression expected in binary expression");
+  }
+
+  node->right()->accept(this, lvl + 2);
+  if (!node->right()->is_typed(cdk::TYPE_INT))
+  {
+    throw std::string("integer expression expected in binary expression");
+  }
+
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+}
+
+void udf::type_checker::do_GeneralLogicalExpression(cdk::binary_operation_node *const node, int lvl) {
+  ASSERT_UNSPEC;
+  node->left()->accept(this, lvl + 2);
+  node->right()->accept(this, lvl + 2);
+  if (node->left()->type() != node->right()->type()) {
+    throw std::string("same type expected on both sides of equality operator");
+  }
+  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+}
+
+//---------------------------------------------------------------------------
+
 void udf::type_checker::do_add_node(cdk::add_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
+  do_PIDExpression(node, lvl);
 }
 void udf::type_checker::do_sub_node(cdk::sub_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
+  do_PIDExpression(node, lvl);
 }
 void udf::type_checker::do_mul_node(cdk::mul_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
+   do_IDExpression(node, lvl);
 }
 void udf::type_checker::do_div_node(cdk::div_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
+   do_IDExpression(node, lvl);
 }
 void udf::type_checker::do_mod_node(cdk::mod_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
+  do_IntOnlyExpression(node, lvl);
 }
-void udf::type_checker::do_lt_node(cdk::lt_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
-}
-void udf::type_checker::do_le_node(cdk::le_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
-}
-void udf::type_checker::do_ge_node(cdk::ge_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
-}
-void udf::type_checker::do_gt_node(cdk::gt_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
-}
-void udf::type_checker::do_ne_node(cdk::ne_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
-}
-void udf::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
-  processBinaryExpression(node, lvl);
-}
+
 void udf::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
   ASSERT_UNSPEC;
   node->argument()->accept(this, lvl + 2);
@@ -311,30 +437,32 @@ void udf::type_checker::do_not_node(cdk::not_node *const node, int lvl) {
   }
 }
 
-void udf::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
-  ASSERT_UNSPEC;
-  node->left()->accept(this, lvl + 2);
-  if (!node->left()->is_typed(cdk::TYPE_INT)) {
-    throw std::string("left argument of && must be an integer at line " + std::to_string(node->lineno()));
-  }
-  node->right()->accept(this, lvl + 2);
-  if (!node->right()->is_typed(cdk::TYPE_INT)) {
-    throw std::string("right argument of && must be an integer at line " + std::to_string(node->lineno()));
-  }
-  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+//---------------------------------------------------------------------------
+
+void udf::type_checker::do_lt_node(cdk::lt_node *const node, int lvl) {
+  do_ScalarLogicalExpression(node, lvl);
+}
+void udf::type_checker::do_le_node(cdk::le_node *const node, int lvl) {
+  do_ScalarLogicalExpression(node, lvl);
+}
+void udf::type_checker::do_ge_node(cdk::ge_node *const node, int lvl) {
+  do_ScalarLogicalExpression(node, lvl);
+}
+void udf::type_checker::do_gt_node(cdk::gt_node *const node, int lvl) {
+  do_ScalarLogicalExpression(node, lvl);
+}
+void udf::type_checker::do_ne_node(cdk::ne_node *const node, int lvl) {
+  do_GeneralLogicalExpression(node, lvl);
+}
+void udf::type_checker::do_eq_node(cdk::eq_node *const node, int lvl) {
+  do_GeneralLogicalExpression(node, lvl);
 }
 
+void udf::type_checker::do_and_node(cdk::and_node *const node, int lvl) {
+  do_BooleanLogicalExpression(node, lvl);
+}
 void udf::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
-  ASSERT_UNSPEC;
-  node->left()->accept(this, lvl + 2);
-  if (!node->left()->is_typed(cdk::TYPE_INT)) {
-    throw std::string("left argument of || must be an integer at line " + std::to_string(node->lineno()));
-  }
-  node->right()->accept(this, lvl + 2);
-  if (!node->right()->is_typed(cdk::TYPE_INT)) {
-    throw std::string("right argument of || must be an integer at line " + std::to_string(node->lineno()));
-  }
-  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+  do_BooleanLogicalExpression(node, lvl);
 }
 
 //---------------------------------------------------------------------------
@@ -343,48 +471,103 @@ void udf::type_checker::do_variable_node(cdk::variable_node *const node, int lvl
   ASSERT_UNSPEC;
   const std::string &id = node->name();
   auto symbol = _symtab.find(id);
-  if (symbol) node->type(symbol->type());
-  else{
+  if (symbol) {
+    node->type(symbol->type());
+  } else {
     throw std::string("undeclared variable '" + id + "'");
   }
 }
 
 void udf::type_checker::do_rvalue_node(cdk::rvalue_node *const node, int lvl) {
   ASSERT_UNSPEC;
-  try {
-    node->lvalue()->accept(this, lvl);
-    node->type(node->lvalue()->type());
-  } catch (const std::string &id) {
-    throw "undeclared variable '" + id + "'";
-  }
+  node->lvalue()->accept(this, lvl);
+  node->type(node->lvalue()->type());
 }
 
 void udf::type_checker::do_assignment_node(cdk::assignment_node *const node, int lvl) {
   ASSERT_UNSPEC;
 
-  try {
-    node->lvalue()->accept(this, lvl);
-  } catch (const std::string &id) {
-    auto symbol = std::make_shared<udf::symbol>(
-      false,                // constant
-      0,                    // qualifier
-      cdk::primitive_type::create(4, cdk::TYPE_INT), // type
-      id,                   // name
-      false,                // initialized
-      false                 // function
-    );
-    _symtab.insert(id, symbol);
-    _parent->set_new_symbol(symbol);  // advise parent that a symbol has been inserted
-    node->lvalue()->accept(this, lvl);
+  node->lvalue()->accept(this, lvl + 4);
+  node->rvalue()->accept(this, lvl + 4);
+
+  if (node->lvalue()->is_typed(cdk::TYPE_INT))
+  {
+    if (node->rvalue()->is_typed(cdk::TYPE_INT))
+    {
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    }
+    else if (node->rvalue()->is_typed(cdk::TYPE_UNSPEC))
+    {
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+      node->rvalue()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    }
+    else
+    {
+      throw std::string("wrong assignment to integer");
+    }
   }
+  else if (node->lvalue()->is_typed(cdk::TYPE_POINTER))
+  {
 
-  if (!node->lvalue()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in left argument of assignment expression");
+    // TODO: check pointer level
 
-  node->rvalue()->accept(this, lvl + 2);
-  if (!node->rvalue()->is_typed(cdk::TYPE_INT)) throw std::string("wrong type in right argument of assignment expression");
+    if (node->rvalue()->is_typed(cdk::TYPE_POINTER))
+    {
+      node->type(node->rvalue()->type());
+    }
+    else if (node->rvalue()->is_typed(cdk::TYPE_INT))
+    {
+      // TODO: check that the integer is a literal and that it is zero
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_POINTER));
+    }
+    else if (node->rvalue()->is_typed(cdk::TYPE_UNSPEC))
+    {
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_ERROR));
+      node->rvalue()->type(cdk::primitive_type::create(4, cdk::TYPE_ERROR));
+    }
+    else
+    {
+      throw std::string("wrong assignment to pointer");
+    }
+  }
+  else if (node->lvalue()->is_typed(cdk::TYPE_DOUBLE))
+  {
 
-  // in UDF, expressions are always int
-  node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
+    if (node->rvalue()->is_typed(cdk::TYPE_DOUBLE) || node->rvalue()->is_typed(cdk::TYPE_INT))
+    {
+      node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+    }
+    else if (node->rvalue()->is_typed(cdk::TYPE_UNSPEC))
+    {
+      node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+      node->rvalue()->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
+    }
+    else
+    {
+      throw std::string("wrong assignment to real");
+    }
+  }
+  else if (node->lvalue()->is_typed(cdk::TYPE_STRING))
+  {
+
+    if (node->rvalue()->is_typed(cdk::TYPE_STRING))
+    {
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_STRING));
+    }
+    else if (node->rvalue()->is_typed(cdk::TYPE_UNSPEC))
+    {
+      node->type(cdk::primitive_type::create(4, cdk::TYPE_STRING));
+      node->rvalue()->type(cdk::primitive_type::create(4, cdk::TYPE_STRING));
+    }
+    else
+    {
+      throw std::string("wrong assignment to string");
+    }
+  }
+  else
+  {
+    throw std::string("wrong types in assignment");
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -401,14 +584,7 @@ void udf::type_checker::do_function_declaration_node(udf::function_declaration_n
     id = node->identifier();
 
   // remember symbol so that args know
-  auto function = std::make_shared<udf::symbol>(
-    false,                // constant
-    0,                    // qualifier
-    node->type(),         // type
-    id,                   // name
-    false,                // initialized
-    true                  // function
-  );
+  auto function = udf::make_symbol(false, node->qualifier(), node->type(), id, false, true, true);
 
   std::vector<std::shared_ptr<cdk::basic_type>> argtypes;
   for (size_t ax = 0; ax < node->arguments()->size(); ax++)
@@ -444,14 +620,7 @@ void udf::type_checker::do_function_definition_node(udf::function_definition_nod
   _inBlockReturnType = nullptr;
 
   // remember symbol so that args know
-  auto function = std::make_shared<udf::symbol>(
-    false,                // constant
-    0,                    // qualifier
-    node->type(),         // type
-    id,                   // name
-    false,                // initialized
-    true                  // function
-  );
+  auto function = udf::make_symbol(false, node->qualifier(), node->type(), id, false, true);
 
   std::vector<std::shared_ptr<cdk::basic_type>> argtypes;
   for (size_t ax = 0; ax < node->arguments()->size(); ax++)
@@ -597,17 +766,13 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
   }
 
   const std::string &id = node->identifier();
-  auto symbol = std::make_shared<udf::symbol>(
-  false,                // constant
-  0,                    // qualifier
-  node->type(),         // type
-  id,                   // name
-  (bool)node->initializer(), // initialized
-  false                 // function
-);
+  auto symbol = udf::make_symbol(false, node->qualifier(), node->type(), id, (bool)node->initializer(), false);
+
   if (_symtab.insert(id, symbol)) {
+    std::cout << "Inserted symbol '" << id << "' of type " << cdk::to_string(symbol->type()) << " at offset " << symbol->offset() << std::endl;
     _parent->set_new_symbol(symbol); // advise parent that a symbol has been inserted
   } else {
+    std::cout << "Failed to insert symbol: " << id << std::endl;
     throw std::string("variable '" + id + "' redeclared");
   }
 }
@@ -629,22 +794,22 @@ void udf::type_checker::do_input_node(udf::input_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
-  // _symtab.push();
-  // _inLoop = true;
-  // if (node->declaration())
-  //   node->declaration()->accept(this, lvl + 2);
-  // if (node->condition()) {
-  //   node->condition()->accept(this, lvl + 2);
-  //   auto cond_expr = dynamic_cast<cdk::expression_node*>(node->condition());
-  //   if (!cond_expr || !cond_expr->is_typed(cdk::TYPE_INT))
-  //     throw std::string("for loop condition must be an integer at line " + std::to_string(node->lineno()));
-  // }
-  // if (node->increment()) node->increment()->accept(this, lvl + 2);
+  _symtab.push();
+  _inLoop = true;
+  if (node->declaration())
+    node->declaration()->accept(this, lvl + 2);
+  if (node->condition()) {
+    node->condition()->accept(this, lvl + 2);
+    auto cond_expr = dynamic_cast<cdk::expression_node*>(node->condition());
+    if (!cond_expr || !cond_expr->is_typed(cdk::TYPE_INT))
+      throw std::string("for loop condition must be an integer at line " + std::to_string(node->lineno()));
+  }
+  if (node->increment()) node->increment()->accept(this, lvl + 2);
   
-  // if (node->block()) node->block()->accept(this, lvl + 2);
+  if (node->block()) node->block()->accept(this, lvl + 2);
 
-  // _inLoop = false;
-  // _symtab.pop();
+  _inLoop = false;
+  _symtab.pop();
 }
 
 //---------------------------------------------------------------------------
@@ -677,14 +842,7 @@ void udf::type_checker::do_function_call_node(udf::function_call_node *const nod
   {
     // declare return variable for passing to function call
     const std::string return_var_name = "$return_" + id;
-    auto return_symbol = std::make_shared<udf::symbol>(
-      false,                // constant
-      0,                    // qualifier
-      symbol->type(),       // type
-      return_var_name,      // name
-      false,                // initialized
-      false                 // function
-    );
+    auto return_symbol = udf::make_symbol(false, symbol->qualifier(), symbol->type(), return_var_name, false, false);
     if (_symtab.insert(return_var_name, return_symbol))
     {
     }

@@ -31,8 +31,11 @@ void udf::xml_writer::do_data_node(cdk::data_node * const node, int lvl) {
 
 void udf::xml_writer::do_sequence_node(cdk::sequence_node * const node, int lvl) {
   os() << std::string(lvl, ' ') << "<sequence_node size='" << node->size() << "'>" << std::endl;
-  for (size_t i = 0; i < node->size(); i++)
-    node->node(i)->accept(this, lvl + 2);
+  for (size_t i = 0; i < node->size(); i++) {
+    cdk::basic_node *n = node->node(i);
+    if (n == NULL) break;
+    n->accept(this, lvl + 2);
+  }
   closeTag(node, lvl);
 }
 
@@ -53,7 +56,6 @@ void udf::xml_writer::do_string_node(cdk::string_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_unary_operation(cdk::unary_operation_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);
   node->argument()->accept(this, lvl + 2);
   closeTag(node, lvl);
@@ -74,7 +76,6 @@ void udf::xml_writer::do_not_node(cdk::not_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_binary_operation(cdk::binary_operation_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);
   node->left()->accept(this, lvl + 2);
   node->right()->accept(this, lvl + 2);
@@ -124,7 +125,12 @@ void udf::xml_writer::do_or_node(cdk::or_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_variable_node(cdk::variable_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
+  auto symbol = _symtab.find(node->name());
+  if (!symbol) {
+    os() << std::string(lvl, ' ') << "<variable_node error='undeclared variable' name='" << node->name() << "'/>" << std::endl;
+    std::cout << "ERROR: undeclared variable '" << node->name() << "'." << std::endl;
+    return;
+  }
   os() << std::string(lvl, ' ') << "<" << node->label() << ">" << node->name() << "</" << node->label() << ">" << std::endl;
 }
 
@@ -138,11 +144,8 @@ void udf::xml_writer::do_rvalue_node(cdk::rvalue_node * const node, int lvl) {
 void udf::xml_writer::do_assignment_node(cdk::assignment_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);
-
-  node->lvalue()->accept(this, lvl);
-  reset_new_symbol();
-
-  node->rvalue()->accept(this, lvl + 4);
+  node->lvalue()->accept(this, lvl + 2);
+  node->rvalue()->accept(this, lvl + 2);
   closeTag(node, lvl);
 }
 
@@ -247,6 +250,11 @@ void udf::xml_writer::do_address_of_node(udf::address_of_node * const node, int 
 void udf::xml_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
 
+  if (_inFunctionBody || _inFunctionArgs) {
+    std::cerr << "Function declaration: " << node->identifier() << std::endl;
+    return;
+  }
+
   reset_new_symbol();
 
   os() << std::string(lvl, ' ') << "<" << node->label() << " name='" << node->identifier() << "' qualifier='"
@@ -264,6 +272,11 @@ void udf::xml_writer::do_function_declaration_node(udf::function_declaration_nod
 
 void udf::xml_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
+
+  if (_inFunctionBody || _inFunctionArgs) {
+    std::cerr << "Function definition: " << node->identifier() << std::endl;
+    return;
+  }
   
   _symtab.push();
   
@@ -282,7 +295,6 @@ void udf::xml_writer::do_function_definition_node(udf::function_definition_node 
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_evaluation_node(udf::evaluation_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS;
   openTag(node, lvl);
   node->argument()->accept(this, lvl + 2);
   closeTag(node, lvl);

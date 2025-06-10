@@ -1,6 +1,9 @@
 #pragma once
 
 #include "targets/basic_ast_visitor.h"
+
+#include <stack>
+
 #include <cdk/ast/basic_node.h>
 
 namespace udf {
@@ -11,11 +14,15 @@ namespace udf {
   class xml_writer: public basic_ast_visitor {
     cdk::symbol_table<udf::symbol> &_symtab;
 
+    bool _inFunctionArgs, _inFunctionBody;
+    bool _inForInit;
+    std::stack<int> _forIni, _forStep, _forEnd; // for break/repeat
     std::shared_ptr<udf::symbol> _function; // for keeping track of the current function and its arguments
 
   public:
     xml_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab) :
-        basic_ast_visitor(compiler), _symtab(symtab), _function(nullptr) {
+        basic_ast_visitor(compiler), _symtab(symtab), _inFunctionArgs(false), _inFunctionBody(
+            false), _inForInit(false), _function(nullptr) {
     }
 
   public:

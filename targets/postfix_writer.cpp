@@ -20,9 +20,8 @@ void udf::postfix_writer::do_data_node(cdk::data_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_sequence_node(cdk::sequence_node * const node, int lvl) {
-  for (size_t i = 0; i < node->size(); i++) {
+  for (size_t i = 0; i < node->size(); i++)
     node->node(i)->accept(this, lvl);
-  }
 }
 
 //---------------------------------------------------------------------------
@@ -89,88 +88,148 @@ void udf::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
 
 void udf::postfix_writer::do_add_node(cdk::add_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  if (node->is_typed(cdk::TYPE_TENSOR)) {
-    if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
-      _pf.EXTERN("tensor_add_scalar");
-      _pf.CALL("tensor_add_scalar");
-      _pf.LDFVAL32();
-    } else {
-      _pf.EXTERN("tensor_add");
-      _pf.CALL("tensor_add");
-      _pf.LDFVAL32();
-    }
-  } else {
-    _pf.ADD(); // Integer addition
+  node->left()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) {
+    _pf.I2D();
+  } else if (node->type()->name() == cdk::TYPE_POINTER && node->left()->type()->name() == cdk::TYPE_INT) {
+    _pf.INT(3);
+    _pf.SHTL();
   }
+
+  node->right()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->right()->type()->name() == cdk::TYPE_INT) {
+    _pf.I2D();
+  } else if (node->type()->name() == cdk::TYPE_POINTER && node->right()->type()->name() == cdk::TYPE_INT) {
+    _pf.INT(3);
+    _pf.SHTL();
+  }
+
+  // if (node->is_typed(cdk::TYPE_TENSOR)) {
+  //   if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
+  //     _pf.EXTERN("tensor_add_scalar");
+  //     _pf.CALL("tensor_add_scalar");
+  //     _pf.LDFVAL32();
+  //   } else {
+  //     _pf.EXTERN("tensor_add");
+  //     _pf.CALL("tensor_add");
+  //     _pf.LDFVAL32();
+  //   }
+  // }
+
+  if (node->type()->name() == cdk::TYPE_DOUBLE)
+    _pf.DADD();
+  else
+    _pf.ADD();
 }
+
 void udf::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  if (node->is_typed(cdk::TYPE_TENSOR)) {
-    if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
-      _pf.EXTERN("tensor_sub_scalar");
-      _pf.CALL("tensor_sub_scalar");
-      _pf.LDFVAL32();
-    } else {
-      _pf.EXTERN("tensor_sub");
-      _pf.CALL("tensor_sub");
-      _pf.LDFVAL32();
-    }
-  } else {
-    _pf.SUB(); // Integer subtraction
+  node->left()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->right()->type()->name() == cdk::TYPE_INT) {
+    _pf.I2D();
+  } else if (node->type()->name() == cdk::TYPE_POINTER && node->right()->type()->name() == cdk::TYPE_INT) {
+    _pf.INT(3);
+    _pf.SHTL();
   }
+  
+  // if (node->is_typed(cdk::TYPE_TENSOR)) {
+  //   if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
+  //     _pf.EXTERN("tensor_sub_scalar");
+  //     _pf.CALL("tensor_sub_scalar");
+  //     _pf.LDFVAL32();
+  //   } else {
+  //     _pf.EXTERN("tensor_sub");
+  //     _pf.CALL("tensor_sub");
+  //     _pf.LDFVAL32();
+  //   }
+  // } else {
+  //   _pf.SUB(); // Integer subtraction
+  // }
+
+  if (node->type()->name() == cdk::TYPE_DOUBLE)
+    _pf.DSUB();
+  else
+    _pf.SUB();
 }
+
 void udf::postfix_writer::do_mul_node(cdk::mul_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  if (node->is_typed(cdk::TYPE_TENSOR)) {
-    if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
-      _pf.EXTERN("tensor_mul_scalar");
-      _pf.CALL("tensor_mul_scalar");
-      _pf.LDFVAL32();
-    } else {
-      _pf.EXTERN("tensor_mul");
-      _pf.CALL("tensor_mul");
-      _pf.LDFVAL32();
-    }
-  } else {
-    _pf.MUL(); // Integer multiplication
-  }
+  node->left()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->right()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+
+  // if (node->is_typed(cdk::TYPE_TENSOR)) {
+  //   if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
+  //     _pf.EXTERN("tensor_mul_scalar");
+  //     _pf.CALL("tensor_mul_scalar");
+  //     _pf.LDFVAL32();
+  //   } else {
+  //     _pf.EXTERN("tensor_mul");
+  //     _pf.CALL("tensor_mul");
+  //     _pf.LDFVAL32();
+  //   }
+  // } else {
+  //   _pf.MUL(); // Integer multiplication
+  // }
+
+  if (node->type()->name() == cdk::TYPE_DOUBLE)
+    _pf.DMUL();
+  else
+    _pf.MUL();
 }
+
 void udf::postfix_writer::do_div_node(cdk::div_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
-  if (node->is_typed(cdk::TYPE_TENSOR)) {
-    if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
-      _pf.EXTERN("tensor_div_scalar");
-      _pf.CALL("tensor_div_scalar");
-      _pf.LDFVAL32();
-    } else {
-      _pf.EXTERN("tensor_div");
-      _pf.CALL("tensor_div");
-      _pf.LDFVAL32();
-    }
-  } else {
-    _pf.DIV(); // Integer division
-  }
+
+  node->left()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->type()->name() == cdk::TYPE_DOUBLE && node->right()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+
+  // if (node->is_typed(cdk::TYPE_TENSOR)) {
+  //   if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
+  //     _pf.EXTERN("tensor_div_scalar");
+  //     _pf.CALL("tensor_div_scalar");
+  //     _pf.LDFVAL32();
+  //   } else {
+  //     _pf.EXTERN("tensor_div");
+  //     _pf.CALL("tensor_div");
+  //     _pf.LDFVAL32();
+  //   }
+  // } else {
+  //   _pf.DIV(); // Integer division
+  // }
+
+  if (node->type()->name() == cdk::TYPE_DOUBLE)
+    _pf.DDIV();
+  else
+    _pf.DIV();
 }
+
 void udf::postfix_writer::do_mod_node(cdk::mod_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
+  node->left()->accept(this, lvl + 2);
+  node->right()->accept(this, lvl + 2);
   _pf.MOD();
 }
+
 void udf::postfix_writer::do_lt_node(cdk::lt_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
+  node->left()->accept(this, lvl + 2);
+  if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->right()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
   _pf.LT();
 }
+
 void udf::postfix_writer::do_le_node(cdk::le_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl + 2);
@@ -181,6 +240,7 @@ void udf::postfix_writer::do_le_node(cdk::le_node * const node, int lvl) {
 
   _pf.LE();
 }
+
 void udf::postfix_writer::do_ge_node(cdk::ge_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl + 2);
@@ -191,6 +251,7 @@ void udf::postfix_writer::do_ge_node(cdk::ge_node * const node, int lvl) {
 
   _pf.GE();
 }
+
 void udf::postfix_writer::do_gt_node(cdk::gt_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl + 2);
@@ -201,6 +262,7 @@ void udf::postfix_writer::do_gt_node(cdk::gt_node * const node, int lvl) {
 
   _pf.GT();
 }
+
 void udf::postfix_writer::do_ne_node(cdk::ne_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl + 2);
@@ -211,6 +273,7 @@ void udf::postfix_writer::do_ne_node(cdk::ne_node * const node, int lvl) {
 
   _pf.NE();
 }
+
 void udf::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   node->left()->accept(this, lvl + 2);
@@ -221,6 +284,7 @@ void udf::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
 
   _pf.EQ();
 }
+
 void udf::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   int lbl = ++_lbl;
@@ -232,6 +296,7 @@ void udf::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
   _pf.ALIGN();
   _pf.LABEL(mklbl(lbl));
 }
+
 void udf::postfix_writer::do_or_node(cdk::or_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   int lbl = ++_lbl;
@@ -373,22 +438,29 @@ void udf::postfix_writer::do_alloc_node(udf::alloc_node * const node, int lvl) {
 
 void udf::postfix_writer::do_variable_node(cdk::variable_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  // simplified generation: all variables are global
-  _pf.ADDR(node->name());
+  const std::string &id = node->name();
+  auto symbol = _symtab.find(id);
+  if (!symbol) {
+    std::cerr << "ERROR: Symbol '" << id << "' not found in symbol table" << std::endl;
+    _errors = true;
+    return;
+  }
+
+  if (symbol->global()) {
+    _pf.ADDR(symbol->name());
+  } else {
+    _pf.LOCAL(symbol->offset());
+  }
 }
 
 void udf::postfix_writer::do_rvalue_node(cdk::rvalue_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->lvalue()->accept(this, lvl); // Load address
-  auto symbol = _symtab.find(dynamic_cast<cdk::variable_node*>(node->lvalue())->name());
-  if (!symbol) {
-    std::cerr << "ERROR: Undeclared variable in rvalue at line " << node->lineno() << std::endl;
-    exit(1);
-  }
-  if (symbol->type()->name() == cdk::TYPE_INT || symbol->type()->name() == cdk::TYPE_STRING || symbol->type()->name() == cdk::TYPE_POINTER) {
-    _pf.LDINT(); // Load 32-bit value
-  } else if (symbol->type()->name() == cdk::TYPE_DOUBLE) {
-    _pf.LDDOUBLE(); // Load 64-bit double
+  node->lvalue()->accept(this, lvl);
+  if (node->type()->name() == cdk::TYPE_DOUBLE) {
+    _pf.LDDOUBLE();
+  } else {
+    // integers, pointers, strings, tensors
+    _pf.LDINT();
   }
 }
 
@@ -480,6 +552,7 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
   _pf.LEAVE();
   _pf.RET();
 
+  std::cerr << "Popping scope for function " << _function->name() << std::endl;
   _symtab.pop(); // scope of arguments
 
   if (node->identifier() == "udf") {
@@ -519,6 +592,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
   ASSERT_SAFE_EXPRESSIONS;
   auto id = node->identifier();
   std::cout << "INITIAL OFFSET: " << _offset << std::endl;
+
   // type size?
   int offset = 0, typesize = node->type()->size(); // in bytes
   std::cout << "ARG: " << id << ", " << typesize << std::endl;
@@ -537,9 +611,11 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
   std::cout << "OFFSET: " << id << ", " << offset << std::endl;
   auto symbol = new_symbol();
   if (symbol) {
+    std::cerr << node->lineno() << ": ERROR: No symbol created for variable '" << id << "'" << std::endl;
     symbol->set_offset(offset);
     reset_new_symbol();
   }
+
   if (_inFunctionBody) {
     // if we are dealing with local variables, then no action is needed
     // unless an initializer exists
@@ -622,15 +698,8 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
 
 void udf::postfix_writer::do_evaluation_node(udf::evaluation_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->argument()->accept(this, lvl); // determine the value
-  if (node->argument()->is_typed(cdk::TYPE_INT)) {
-    _pf.TRASH(4); // delete the evaluated value
-  } else if (node->argument()->is_typed(cdk::TYPE_STRING)) {
-    _pf.TRASH(4); // delete the evaluated value's address
-  } else {
-    std::cerr << "ERROR: CANNOT HAPPEN!" << std::endl;
-    exit(1);
-  }
+  node->argument()->accept(this, lvl);
+  _pf.TRASH(node->argument()->type()->size());
 }
 
 void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
