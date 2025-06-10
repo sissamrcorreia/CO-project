@@ -4,17 +4,12 @@
 
 namespace udf {
 
-  /**
-   * Print nodes as XML elements to the output stream.
-   */
-  class type_checker: public basic_ast_visitor {
+  class type_checker: public virtual basic_ast_visitor {
     cdk::symbol_table<udf::symbol> &_symtab;
     std::shared_ptr<udf::symbol> _function;
-
     basic_ast_visitor *_parent;
     std::shared_ptr<cdk::basic_type> _inBlockReturnType = nullptr;
-
-    bool _inLoop = false; // Tracks if inside a loop
+    bool _inLoop = false;
 
   public:
     type_checker(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab, std::shared_ptr<udf::symbol> func, basic_ast_visitor *parent) :
@@ -25,17 +20,18 @@ namespace udf {
     ~type_checker();
 
   protected:
-    void do_ArithmeticExpression(cdk::binary_operation_node * const node, int lvl) {
-      throw 42;
-    }
     void do_IntOnlyExpression(cdk::binary_operation_node * const node, int lvl);
-    void do_PIDExpression(cdk::binary_operation_node * const node, int lvl);
     void do_IDExpression(cdk::binary_operation_node * const node, int lvl);
+    void do_IDTExpression(cdk::binary_operation_node * const node, int lvl);
+    void do_IDPTExpression(cdk::binary_operation_node * const node, int lvl);
 
   protected:
     void do_ScalarLogicalExpression(cdk::binary_operation_node * const node, int lvl);
     void do_BooleanLogicalExpression(cdk::binary_operation_node * const node, int lvl);
     void do_GeneralLogicalExpression(cdk::binary_operation_node * const node, int lvl);
+
+  protected:
+    // bool 
 
   public:
     // do not edit these lines
@@ -53,14 +49,14 @@ namespace udf {
 //---------------------------------------------------------------------------
 
 #define CHECK_TYPES(compiler, symtab, function, node) { \
-  try { \
-    udf::type_checker checker(compiler, symtab, function, this); \
-    (node)->accept(&checker, 0); \
-  } \
-  catch (const std::string &problem) { \
-    std::cerr << (node)->lineno() << ": " << problem << std::endl; \
-    return; \
-  } \
-}
+    try { \
+      udf::type_checker checker(compiler, symtab, function, this); \
+      (node)->accept(&checker, 0); \
+    } \
+    catch (const std::string &problem) { \
+      std::cerr << (node)->lineno() << ": " << problem << std::endl; \
+      return; \
+    } \
+  }
 
 #define ASSERT_SAFE_EXPRESSIONS CHECK_TYPES(_compiler, _symtab, _function, node)

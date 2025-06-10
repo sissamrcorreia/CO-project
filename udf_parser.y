@@ -98,6 +98,7 @@ vardec : tPUBLIC data_type tIDENTIFIER opt_initializer { $$ = new udf::variable_
        | tFORWARD data_type tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPUBLIC, $2, *$3, nullptr); delete $3; }
        | data_type tIDENTIFIER opt_initializer { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, $1, *$2, $3); delete $2; }
        | tPUBLIC tTYPE_AUTO tIDENTIFIER '=' expression { $$ = new udf::variable_declaration_node(LINE, tPUBLIC, nullptr, *$3, $5); delete $3; }
+       | tFORWARD tTYPE_AUTO tIDENTIFIER { $$ = new udf::variable_declaration_node(LINE, tPUBLIC,  nullptr, *$3, nullptr); }
        | tTYPE_AUTO tIDENTIFIER '=' expression { $$ = new udf::variable_declaration_node(LINE, tPRIVATE, nullptr, *$2, $4); delete $2; }
        ;
 

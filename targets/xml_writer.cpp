@@ -125,12 +125,6 @@ void udf::xml_writer::do_or_node(cdk::or_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::xml_writer::do_variable_node(cdk::variable_node * const node, int lvl) {
-  auto symbol = _symtab.find(node->name());
-  if (!symbol) {
-    os() << std::string(lvl, ' ') << "<variable_node error='undeclared variable' name='" << node->name() << "'/>" << std::endl;
-    std::cout << "ERROR: undeclared variable '" << node->name() << "'." << std::endl;
-    return;
-  }
   os() << std::string(lvl, ' ') << "<" << node->label() << ">" << node->name() << "</" << node->label() << ">" << std::endl;
 }
 
