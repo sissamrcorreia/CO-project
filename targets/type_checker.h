@@ -30,10 +30,7 @@ namespace udf {
     void do_BooleanLogicalExpression(cdk::binary_operation_node * const node, int lvl);
     void do_GeneralLogicalExpression(cdk::binary_operation_node * const node, int lvl);
 
-  protected:
-    // bool 
-
-  public:
+ public:
     // do not edit these lines
 #define __IN_VISITOR_HEADER__
 #include ".auto/visitor_decls.h"       // automatically generated

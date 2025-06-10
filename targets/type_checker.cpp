@@ -762,6 +762,9 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
   if (node->initializer() != nullptr) {
     node->initializer()->accept(this, lvl + 2);
 
+    // sanity setting: infer type from initializer
+    if (node->type() == nullptr) node->type(node->initializer()->type());
+
     if (node->is_typed(cdk::TYPE_INT)) {
       if (!node->initializer()->is_typed(cdk::TYPE_INT))
         throw std::string("wrong type for initializer (integer expected)");
@@ -794,9 +797,18 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
   auto symbol = udf::make_symbol(false, node->qualifier(), node->type(), id, (bool)node->initializer(), false);
   if (_symtab.insert(id, symbol)) {
     _parent->set_new_symbol(symbol); // advise parent that a symbol has been inserted
-  } else {
-    throw std::string("variable '" + id + "' redeclared");
+    return;
   }
+
+  // TODO: check redeclaration
+  auto previous = _symtab.find(node->identifier());
+  if (previous) {
+     _symtab.replace(node->identifier(), symbol);
+      _parent->set_new_symbol(symbol);
+      return;
+  }
+  throw std::string("variable '" + id + "' redeclared");
+
 }
 
 //---------------------------------------------------------------------------
