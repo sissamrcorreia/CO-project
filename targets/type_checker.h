@@ -17,8 +17,8 @@ namespace udf {
     bool _inLoop = false; // Tracks if inside a loop
 
   public:
-    type_checker(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab, basic_ast_visitor *parent) :
-        basic_ast_visitor(compiler), _symtab(symtab), _parent(parent) {
+    type_checker(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab, std::shared_ptr<udf::symbol> func, basic_ast_visitor *parent) :
+        basic_ast_visitor(compiler), _symtab(symtab), _function(func), _parent(parent) {
     }
 
   public:
@@ -48,9 +48,9 @@ namespace udf {
 //     HELPER MACRO FOR TYPE CHECKING
 //---------------------------------------------------------------------------
 
-#define CHECK_TYPES(compiler, symtab, node) { \
+#define CHECK_TYPES(compiler, symtab, function, node) { \
   try { \
-    udf::type_checker checker(compiler, symtab, this); \
+    udf::type_checker checker(compiler, symtab, function, this); \
     (node)->accept(&checker, 0); \
   } \
   catch (const std::string &problem) { \
@@ -59,4 +59,4 @@ namespace udf {
   } \
 }
 
-#define ASSERT_SAFE_EXPRESSIONS CHECK_TYPES(_compiler, _symtab, node)
+#define ASSERT_SAFE_EXPRESSIONS CHECK_TYPES(_compiler, _symtab, _function, node)

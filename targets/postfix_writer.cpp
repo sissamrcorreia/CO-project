@@ -173,32 +173,52 @@ void udf::postfix_writer::do_lt_node(cdk::lt_node * const node, int lvl) {
 }
 void udf::postfix_writer::do_le_node(cdk::le_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
+  node->left()->accept(this, lvl + 2);
+  if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->right()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
   _pf.LE();
 }
 void udf::postfix_writer::do_ge_node(cdk::ge_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
+  node->left()->accept(this, lvl + 2);
+  if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->right()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
   _pf.GE();
 }
 void udf::postfix_writer::do_gt_node(cdk::gt_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
+  node->left()->accept(this, lvl + 2);
+  if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->right()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
   _pf.GT();
 }
 void udf::postfix_writer::do_ne_node(cdk::ne_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
+  node->left()->accept(this, lvl + 2);
+  if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->right()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
   _pf.NE();
 }
 void udf::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  node->left()->accept(this, lvl);
-  node->right()->accept(this, lvl);
+  node->left()->accept(this, lvl + 2);
+  if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
+  node->right()->accept(this, lvl + 2);
+  if (node->right()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
+
   _pf.EQ();
 }
 void udf::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
@@ -474,24 +494,21 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
 void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
 
+  // should not reach here without returning a value (if not void)
   if (_function->type()->name() != cdk::TYPE_VOID) {
-    if (!node->retval()) {
-      _pf.INT(0); // Default return value if none provided
+    node->retval()->accept(this, lvl + 2);
+
+    if (_function->type()->name() == cdk::TYPE_INT || _function->type()->name() == cdk::TYPE_STRING
+        || _function->type()->name() == cdk::TYPE_POINTER) { // TODO: tensor
+      _pf.STFVAL32();
+    } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
+      if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+      _pf.STFVAL64();
     } else {
-      node->retval()->accept(this, lvl + 2);
-      if (_function->type()->name() == cdk::TYPE_INT ||
-          _function->type()->name() == cdk::TYPE_STRING ||
-          _function->type()->name() == cdk::TYPE_POINTER ||
-          _function->type()->name() == cdk::TYPE_TENSOR) {
-        _pf.STFVAL32();
-      } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
-        if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
-        _pf.STFVAL64();
-      } else {
-        std::cerr << "ERROR: Unsupported return type at line " << node->lineno() << std::endl;
-      }
+      std::cerr << node->lineno() << ": should not happen: unknown return type" << std::endl;
     }
   }
+
   _pf.JMP(_currentBodyRetLabel);
   _returnSeen = true;
 }

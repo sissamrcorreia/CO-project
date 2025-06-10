@@ -342,11 +342,9 @@ void udf::type_checker::do_or_node(cdk::or_node *const node, int lvl) {
 void udf::type_checker::do_variable_node(cdk::variable_node *const node, int lvl) {
   ASSERT_UNSPEC;
   const std::string &id = node->name();
-  std::shared_ptr<udf::symbol> symbol = _symtab.find(id);
-
-  if (symbol != nullptr) {
-    node->type(symbol->type());
-  } else {
+  auto symbol = _symtab.find(id);
+  if (symbol) node->type(symbol->type());
+  else{
     throw std::string("undeclared variable '" + id + "'");
   }
 }
@@ -481,7 +479,86 @@ void udf::type_checker::do_function_definition_node(udf::function_definition_nod
 }
 
 void udf::type_checker::do_return_node(udf::return_node *const node, int lvl) {
-  // TODO: implement this
+  if (node->retval())
+  {
+    if (_function->type() != nullptr && _function->is_typed(cdk::TYPE_VOID))
+      throw std::string(
+          "initializer specified for void function.");
+
+    node->retval()->accept(this, lvl + 2);
+
+    // function is auto: copy type of first return expression
+    if (_function->type() == nullptr)
+    {
+      _function->set_type(node->retval()->type());
+      return; // simply set the type
+    }
+
+    if (_inBlockReturnType == nullptr)
+    {
+      _inBlockReturnType = node->retval()->type();
+    }
+    else
+    {
+      if (_inBlockReturnType != node->retval()->type())
+      {
+        _function->set_type(cdk::primitive_type::create(0, cdk::TYPE_ERROR)); // probably irrelevant
+        throw std::string("all return statements in a function must return the same type.");
+      }
+    }
+
+    std::cout << "FUNCT TYPE " << (_function->type() == nullptr ? "auto" : cdk::to_string(_function->type())) << std::endl;
+    std::cout << "RETVAL TYPE " << cdk::to_string(node->retval()->type()) << std::endl;
+
+    if (_function->is_typed(cdk::TYPE_INT))
+    {
+      if (!node->retval()->is_typed(cdk::TYPE_INT))
+        throw std::string("wrong type for initializer (integer expected).");
+    }
+    else if (_function->is_typed(cdk::TYPE_DOUBLE))
+    {
+      if (!node->retval()->is_typed(cdk::TYPE_INT) && !node->retval()->is_typed(cdk::TYPE_DOUBLE))
+      {
+        throw std::string("wrong type for initializer (integer or double expected).");
+      }
+    }
+    else if (_function->is_typed(cdk::TYPE_STRING))
+    {
+      if (!node->retval()->is_typed(cdk::TYPE_STRING))
+      {
+        throw std::string("wrong type for initializer (string expected).");
+      }
+    }
+    else if (_function->is_typed(cdk::TYPE_POINTER))
+    {
+      // FIXME: trouble!!!
+      int ft = 0, rt = 0;
+      auto ftype = _function->type();
+      while (ftype->name() == cdk::TYPE_POINTER)
+      {
+        ft++;
+        ftype = cdk::reference_type::cast(ftype)->referenced();
+      }
+      auto rtype = node->retval()->type();
+      while (rtype != nullptr && rtype->name() == cdk::TYPE_POINTER)
+      {
+        rt++;
+        rtype = cdk::reference_type::cast(rtype)->referenced();
+      }
+
+      std::cout << "FUNCT TYPE " << cdk::to_string(_function->type()) << " --- " << ft << " -- " << ftype->name() << std::endl;
+      std::cout << "RETVAL TYPE " << cdk::to_string(node->retval()->type()) << " --- " << rt << " -- " << cdk::to_string(rtype)
+                << std::endl;
+
+      bool compatible = (ft == rt) && (rtype == nullptr || (rtype != nullptr && ftype->name() == rtype->name()));
+      if (!compatible)
+        throw std::string("wrong type for return expression (pointer expected).");
+    }
+    else
+    {
+      throw std::string("unknown type for initializer.");
+    }
+  }
 }
 
 //---------------------------------------------------------------------------
@@ -552,22 +629,22 @@ void udf::type_checker::do_input_node(udf::input_node *const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
-  _symtab.push();
-  _inLoop = true;
-  if (node->declaration())
-    node->declaration()->accept(this, lvl + 2);
-  if (node->condition()) {
-    node->condition()->accept(this, lvl + 2);
-    auto cond_expr = dynamic_cast<cdk::expression_node*>(node->condition());
-    if (!cond_expr || !cond_expr->is_typed(cdk::TYPE_INT))
-      throw std::string("for loop condition must be an integer at line " + std::to_string(node->lineno()));
-  }
-  if (node->increment()) node->increment()->accept(this, lvl + 2);
+  // _symtab.push();
+  // _inLoop = true;
+  // if (node->declaration())
+  //   node->declaration()->accept(this, lvl + 2);
+  // if (node->condition()) {
+  //   node->condition()->accept(this, lvl + 2);
+  //   auto cond_expr = dynamic_cast<cdk::expression_node*>(node->condition());
+  //   if (!cond_expr || !cond_expr->is_typed(cdk::TYPE_INT))
+  //     throw std::string("for loop condition must be an integer at line " + std::to_string(node->lineno()));
+  // }
+  // if (node->increment()) node->increment()->accept(this, lvl + 2);
   
-  if (node->block()) node->block()->accept(this, lvl + 2);
+  // if (node->block()) node->block()->accept(this, lvl + 2);
 
-  _inLoop = false;
-  _symtab.pop();
+  // _inLoop = false;
+  // _symtab.pop();
 }
 
 //---------------------------------------------------------------------------

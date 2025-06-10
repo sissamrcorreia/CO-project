@@ -145,7 +145,7 @@ void udf::frame_size_calculator::do_if_else_node(udf::if_else_node *const node, 
 }
 
 void udf::frame_size_calculator::do_variable_declaration_node(udf::variable_declaration_node *const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS; // TODO: Check this
+  //ASSERT_SAFE_EXPRESSIONS; // TODO: Check this
   _localsize += node->type()->size();
 }
 
