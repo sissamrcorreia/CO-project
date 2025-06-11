@@ -559,7 +559,6 @@ void udf::type_checker::do_if_else_node(udf::if_else_node *const node, int lvl) 
 void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
   // FIXME: not working
   // _symtab.push();
-  // _inLoop = true;
   // if (node->declaration())
   //   node->declaration()->accept(this, lvl + 2);
   // if (node->condition()) {
@@ -572,20 +571,15 @@ void udf::type_checker::do_for_node(udf::for_node *const node, int lvl) {
   
   // if (node->block()) node->block()->accept(this, lvl + 2);
 
-  // _inLoop = false;
   // _symtab.pop();
 }
 
 void udf::type_checker::do_continue_node(udf::continue_node *const node, int lvl) {
-  if (!_inLoop) {
-    throw std::string("continue statement outside loop at line " + std::to_string(node->lineno()));
-  }
+  // EMPTY
 }
 
 void udf::type_checker::do_break_node(udf::break_node *const node, int lvl) {
-  if (!_inLoop) {
-    throw std::string("break statement outside loop at line " + std::to_string(node->lineno()));
-  }
+  // EMPTY
 }
 
 //---------------------------------------------------------------------------
