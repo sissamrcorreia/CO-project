@@ -43,6 +43,10 @@ namespace udf {
       os().flush();
     }
 
+  protected:
+    void linearize_tensor_data(cdk::sequence_node *node, std::vector<cdk::expression_node*> &flat_values);
+    void extract_tensor_shape(cdk::sequence_node *node, std::vector<int> &shape);
+  
   private:
     /** Method used to generate sequential labels. */
     inline std::string mklbl(int lbl) {

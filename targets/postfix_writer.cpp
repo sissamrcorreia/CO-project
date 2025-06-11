@@ -1,7 +1,9 @@
 #include <string>
 #include <sstream>
-#include "targets/type_checker.h"
+#include <memory>
+#include <cdk/types/types.h>
 #include "targets/postfix_writer.h"
+#include "targets/type_checker.h"
 #include "targets/frame_size_calculator.h"
 #include "targets/symbol.h"
 #include ".auto/all_nodes.h"  // all_nodes.h is automatically generated
@@ -411,47 +413,64 @@ void udf::postfix_writer::do_tensor_contract_node(udf::tensor_contract_node *con
   _pf.LDFVAL32();
 }
 
+void udf::postfix_writer::linearize_tensor_data(cdk::sequence_node *node, std::vector<cdk::expression_node*> &flat_values) {
+    if (node == nullptr) return;
+
+    for (size_t i = 0; i < node->size(); ++i) {
+        cdk::sequence_node *subseq = dynamic_cast<cdk::sequence_node*>(node->node(i));
+        if (subseq != nullptr) {
+            linearize_tensor_data(subseq, flat_values);
+        } else {
+            cdk::expression_node *expr = dynamic_cast<cdk::expression_node*>(node->node(i));
+            if (expr != nullptr) {
+                flat_values.push_back(expr);
+            }
+        }
+    }
+}
+
+void udf::postfix_writer::extract_tensor_shape(cdk::sequence_node *node, std::vector<int> &shape) {
+    if (node == nullptr) return;
+
+    shape.push_back(node->size());
+    if (node->size() > 0) {
+        cdk::sequence_node *first_subseq = dynamic_cast<cdk::sequence_node*>(node->node(0));
+        if (first_subseq != nullptr) {
+            extract_tensor_shape(first_subseq, shape);
+        }
+    }
+}
+
 void udf::postfix_writer::do_tensor_node(udf::tensor_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_node(" << node->lineno() << ")" << std::endl;
+  std::cout << "DEBUG: postfix_writer::do_tensor_node(" << node->lineno() << ")" << " elements: " << node->elements()->size() << std::endl;
 
-  auto elements = node->elements();
-  if (!elements || elements->size() == 0) {
-    std::cerr << "ERROR: Empty tensor literal" << std::endl;
-    return;
+  std::vector<cdk::expression_node*> flat_values;
+  std::vector<int> shape;
+
+  linearize_tensor_data(node->elements(), flat_values);
+  extract_tensor_shape(node->elements(), shape);
+
+  int total_elems = flat_values.size();
+  int rank = shape.size();
+
+  for (int i = rank - 1; i >= 0; --i) {
+      _pf.INT(shape[i]);
   }
 
-  // Get dimensions
-  size_t n_dims = 1;
-  size_t dim_size = elements->size();
-  auto first_subseq = dynamic_cast<cdk::sequence_node*>(elements->node(0));
-  if (first_subseq && first_subseq->size() > 0) {
-    n_dims = 2;
-  }
-
-  _pf.INT(n_dims);
-  _pf.INT(dim_size);
-  if (n_dims == 2) {
-    _pf.INT(first_subseq->size());
-  }
-
-  _pf.EXTERN("tensor_create");
+  _pf.INT(rank);
+  _functions_to_declare.insert("tensor_create");
   _pf.CALL("tensor_create");
+  _pf.TRASH(4 * (rank + 1));
   _pf.LDFVAL32();
 
-  for (size_t i = 0; i < elements->size(); i++) {
-    auto subseq = dynamic_cast<cdk::sequence_node*>(elements->node(i));
-    for (size_t j = 0; j < subseq->size(); j++) {
-      subseq->node(j)->accept(this, lvl + 2);
-      _pf.DUP32();
+  for (ssize_t i = 0; i < total_elems; ++i) {
       _pf.INT(i);
-      if (n_dims == 2) {
-        _pf.INT(j);
-      }
-      _pf.EXTERN("tensor_set");
-      _pf.CALL("tensor_set");
-      _pf.TRASH(4);
-    }
+      flat_values[i]->accept(this, lvl + 2);
+      if (flat_values[i]->is_typed(cdk::TYPE_INT)) _pf.I2D();
+      _functions_to_declare.insert("tensor_put");
+      _pf.CALL("tensor_put");
+      _pf.TRASH(12);
   }
 }
 
@@ -486,7 +505,10 @@ void udf::postfix_writer::do_variable_node(cdk::variable_node * const node, int 
   auto symbol = _symtab.find(id);
   if(!symbol) {
     std::cerr << "ERROR: variable '" << id << "' not found" << std::endl;
+    return;
   }
+
+  std::cout << "DEBUG: symbol found: " << symbol->name() << ", type: " << cdk::to_string(symbol->type()) << " offset: " << symbol->offset() << " global: " << (symbol->global() ? "yes" : "no") << std::endl;
   
   if (symbol->global()) {
     _pf.ADDR(symbol->name());
@@ -511,19 +533,28 @@ void udf::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
   ASSERT_SAFE_EXPRESSIONS;
   std::cout << "DEBUG: postfix_writer::do_assignment_node(" << node->lineno() << ")" << std::endl;
 
+  
   node->rvalue()->accept(this, lvl + 2);
+  std::cout << "ASSIGNMENT_MOMENT: rvalue accepted" << std::endl;
   if (node->type()->name() == cdk::TYPE_DOUBLE) {
-    if (node->rvalue()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+    std::cout << "ASSIGNMENT_MOMENT: storing double value" << std::endl;
+    if (node->rvalue()->type()->name() == cdk::TYPE_INT || node->rvalue()->type()->name() == cdk::TYPE_TENSOR) {
+      std::cout << "ASSIGNMENT_MOMENT: converting int to double" << std::endl;
+      _pf.I2D();
+    }
     _pf.DUP64();
   } else {
+    std::cout << "ASSIGNMENT_MOMENT: storing int value" << std::endl;
     _pf.DUP32();
+    std::cout << "ASSIGNMENT_MOMENT: storing int value" << std::endl;
   }
 
   node->lvalue()->accept(this, lvl);
   if (node->type()->name() == cdk::TYPE_DOUBLE) {
     _pf.STDOUBLE(); // Store double
   } else if (node->lvalue()->is_typed(cdk::TYPE_TENSOR)) {
-    _pf.STFVAL32(); // Store Tensor*
+    std::cout << "ASSIGNMENT_MOMENT: storing tensor" << std::endl;
+    _pf.STINT(); // Store Tensor
   } else {
     _pf.STINT(); // Store int
   }
@@ -599,7 +630,6 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
   _pf.LEAVE();
   _pf.RET();
 
-  std::cerr << "Popping scope for function " << _function->name() << std::endl;
   _symtab.pop(); // scope of arguments
 
   if (node->identifier() == "udf") {
@@ -625,6 +655,8 @@ void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl)
     } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
       if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
       _pf.STFVAL64();
+    } else if (_function->type()->name() == cdk::TYPE_STRUCT) {
+      // TODO: "return" tuple: actually, must allocate space for it on the stack
     } else {
       std::cerr << node->lineno() << ": should not happen: unknown return type" << std::endl;
     }
@@ -670,7 +702,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
     // unless an initializer exists
     if (node->initializer()) {
       node->initializer()->accept(this, lvl);
-      if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER)) {
+      if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_STRING) || node->is_typed(cdk::TYPE_POINTER) || node->is_typed(cdk::TYPE_TENSOR)) {
         _pf.LOCAL(symbol->offset());
         _pf.STINT();
       } else if (node->is_typed(cdk::TYPE_DOUBLE)) {
@@ -678,9 +710,6 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
           _pf.I2D();
         _pf.LOCAL(symbol->offset());
         _pf.STDOUBLE();
-      } else if (node->is_typed(cdk::TYPE_TENSOR)) {
-        // single var initialized with tensor
-        // FIXME
       } else {
         std::cerr << "cannot initialize" << std::endl;
       }
@@ -693,7 +722,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
         _pf.LABEL(id);
         _pf.SALLOC(typesize);
       } else {
-        if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_DOUBLE) || node->is_typed(cdk::TYPE_POINTER)) {
+        if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_DOUBLE) || node->is_typed(cdk::TYPE_POINTER) || node->is_typed(cdk::TYPE_TENSOR)) {
           if (node->constant()) {
             _pf.RODATA();
           } else {
@@ -702,7 +731,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
           _pf.ALIGN();
           _pf.LABEL(id);
 
-          if (node->is_typed(cdk::TYPE_INT)) {
+          if (node->is_typed(cdk::TYPE_INT) || node->is_typed(cdk::TYPE_TENSOR)) {
             node->initializer()->accept(this, lvl);
           } else if (node->is_typed(cdk::TYPE_POINTER)) {
             node->initializer()->accept(this, lvl);
@@ -775,9 +804,10 @@ void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
       _pf.CALL("prints");
       _pf.TRASH(4);
     } else if (etype->name() == cdk::TYPE_TENSOR) {
-      _functions_to_declare.insert("print_tensor");
-      _pf.CALL("print_tensor");
-      _pf.TRASH(4);
+      _functions_to_declare.insert("tensor_print");
+      _pf.EXTERN("tensor_print");
+      _pf.CALL("tensor_print");
+      _pf.TRASH(4); // trash pointer to tensor after print
     } else {
       std::cerr << "cannot print expression of unknown type" << std::endl;
       return;
@@ -837,13 +867,13 @@ void udf::postfix_writer::do_for_node(udf::for_node * const node, int lvl) {
 
   os() << "        ;; FOR instruction" << std::endl;
   // execute instruction
-  node->increment()->accept(this, lvl + 2);
+  node->block()->accept(this, lvl + 2);
 
   os() << "        ;; FOR increment" << std::endl;
   // prepare to increment
   _pf.ALIGN();
   _pf.LABEL(mklbl(_forStep.top()));
-  node->block()->accept(this, lvl + 2);
+  node->increment()->accept(this, lvl + 2);
 
   os() << "        ;; FOR jump to test" << std::endl;
   _pf.JMP(mklbl(_forIni.top()));

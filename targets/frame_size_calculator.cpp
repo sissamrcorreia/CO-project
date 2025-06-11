@@ -132,7 +132,7 @@ void udf::frame_size_calculator::do_block_node(udf::block_node *const node, int 
 
 void udf::frame_size_calculator::do_for_node(udf::for_node *const node, int lvl) {
   node->declaration()->accept(this, lvl + 2);
-  node->condition()->accept(this, lvl + 2);
+  node->block()->accept(this, lvl + 2);
 }
 
 void udf::frame_size_calculator::do_if_node(udf::if_node *const node, int lvl) {

@@ -131,25 +131,25 @@ void udf::type_checker::do_tensor_node(udf::tensor_node *const node, int lvl) {
   // Ensure all sub-sequences have the same length and contain doubles
   size_t first_size = 0;
   bool first = true;
-  for (size_t i = 0; i < elements->size(); i++) {
-    auto subseq = dynamic_cast<cdk::sequence_node*>(elements->node(i));
-    if (!subseq) {
-      throw std::string("tensor elements must be sequences");
-    }
-    subseq->accept(this, lvl + 2);
-    for (size_t j = 0; j < subseq->size(); j++) {
-      auto elem = dynamic_cast<cdk::expression_node*>(subseq->node(j));
-      if (!elem->is_typed(cdk::TYPE_DOUBLE)) {
-        throw std::string("tensor elements must be doubles");
-      }
-    }
-    if (first) {
-      first_size = subseq->size();
-      first = false;
-    } else if (subseq->size() != first_size) {
-      throw std::string("inconsistent dimensions in tensor literal");
-    }
-  }
+  // for (size_t i = 0; i < elements->size(); i++) {
+  //   auto subseq = dynamic_cast<cdk::sequence_node*>(elements->node(i));
+  //   if (!subseq) {
+  //     throw std::string("tensor elements must be sequences");
+  //   }
+  //   subseq->accept(this, lvl + 2);
+  //   for (size_t j = 0; j < subseq->size(); j++) {
+  //     auto elem = dynamic_cast<cdk::expression_node*>(subseq->node(j));
+  //     if (!elem->is_typed(cdk::TYPE_DOUBLE)) {
+  //       throw std::string("tensor elements must be doubles");
+  //     }
+  //   }
+  //   if (first) {
+  //     first_size = subseq->size();
+  //     first = false;
+  //   } else if (subseq->size() != first_size) {
+  //     throw std::string("inconsistent dimensions in tensor literal");
+  //   }
+  // }
 
   node->type(cdk::primitive_type::create(4, cdk::TYPE_TENSOR));
 }
