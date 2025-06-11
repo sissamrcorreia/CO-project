@@ -554,7 +554,7 @@ void udf::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
     _pf.STDOUBLE(); // Store double
   } else if (node->lvalue()->is_typed(cdk::TYPE_TENSOR)) {
     std::cout << "ASSIGNMENT_MOMENT: storing tensor" << std::endl;
-    _pf.STINT(); // Store Tensor
+    _pf.STINT(); // Store Tensor FIXME: check this
   } else {
     _pf.STINT(); // Store int
   }
@@ -650,7 +650,7 @@ void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl)
     node->retval()->accept(this, lvl + 2);
 
     if (_function->type()->name() == cdk::TYPE_INT || _function->type()->name() == cdk::TYPE_STRING
-        || _function->type()->name() == cdk::TYPE_POINTER) { // TODO: tensor
+        || _function->type()->name() == cdk::TYPE_POINTER || _function->type()->name() == cdk::TYPE_TENSOR) {
       _pf.STFVAL32();
     } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
       if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
@@ -714,7 +714,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
         std::cerr << "cannot initialize" << std::endl;
       }
     }
-  } else { //TODO tensor
+  } else {
     if (!_function) {
       if (node->initializer() == nullptr) {
         _pf.BSS();
@@ -833,6 +833,7 @@ void udf::postfix_writer::do_input_node(udf::input_node * const node, int lvl) {
     _functions_to_declare.insert("readi");
     _pf.CALL("readi");
     _pf.LDFVAL32();
+  //} else if (etype->name() == cdk::TYPE_TENSOR) { // FIXME: is this needed?
   } else {
     std::cerr << "FATAL: " << node->lineno() << ": cannot read type" << std::endl;
     return;

@@ -129,8 +129,8 @@ void udf::type_checker::do_tensor_node(udf::tensor_node *const node, int lvl) {
   }
 
   // Ensure all sub-sequences have the same length and contain doubles
-  size_t first_size = 0;
-  bool first = true;
+  // size_t first_size = 0;
+  // bool first = true;
   // for (size_t i = 0; i < elements->size(); i++) {
   //   auto subseq = dynamic_cast<cdk::sequence_node*>(elements->node(i));
   //   if (!subseq) {
