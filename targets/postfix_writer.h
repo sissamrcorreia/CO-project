@@ -17,9 +17,9 @@ namespace udf {
     cdk::symbol_table<udf::symbol> &_symtab;
     cdk::basic_postfix_emitter &_pf;
     int _lbl;
-
+    
     std::set<std::string> _functions_to_declare;
-
+    
     bool _errors, _inFunction, _inFunctionName, _inFunctionArgs, _inFunctionBody;
     bool _inForInit;
     std::stack<int> _forIni, _forStep, _forEnd; // for break/repeat
@@ -29,13 +29,14 @@ namespace udf {
     int _offset; // current framepointer offset (0 means no vars defined)
     std::string _currentBodyRetLabel; // where to jump when a return occurs of an exclusive section ends
     cdk::typename_type _lvalueType;
+    bool _initMemory;
 
 
   public:
     postfix_writer(std::shared_ptr<cdk::compiler> compiler, cdk::symbol_table<udf::symbol> &symtab, cdk::basic_postfix_emitter &pf) :
         basic_ast_visitor(compiler), _symtab(symtab), _pf(pf), _lbl(0), _errors(false), _inFunction(false), _inFunctionName(false), _inFunctionArgs(
             false), _inFunctionBody(false), _inForInit(false), _returnSeen(false), _function(nullptr), _offset(0), _lvalueType(
-            cdk::TYPE_VOID) {
+            cdk::TYPE_VOID), _initMemory(false) {
     }
 
   public:
@@ -44,8 +45,8 @@ namespace udf {
     }
 
   protected:
-    void linearize_tensor_data(cdk::sequence_node *node, std::vector<cdk::expression_node*> &flat_values);
-    void extract_tensor_shape(cdk::sequence_node *node, std::vector<int> &shape);
+    void emit_tensor_elements_with_offset(cdk::sequence_node *seq, int &offset, int lvl);
+    std::vector<size_t> tensor_dims(cdk::sequence_node *seq) ;
   
   private:
     /** Method used to generate sequential labels. */
