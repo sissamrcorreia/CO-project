@@ -15,6 +15,8 @@
 
 udf::type_checker::~type_checker() { os().flush(); }
 
+//---------------------------------------------------------------------------
+
 std::vector<size_t> tensor_dimensions(cdk::sequence_node *seq) {
   std::vector<size_t> dims;
   while (seq) {
@@ -108,17 +110,20 @@ void udf::type_checker::do_tensor_dims_node(udf::tensor_dims_node *const node, i
 
 void udf::type_checker::do_tensor_index_node(udf::tensor_index_node *const node, int lvl) {
   ASSERT_UNSPEC;
+  node->position()->accept(this, lvl + 2);
+  for (size_t ax = 0; ax < node->position()->size(); ax++) {
+    // Check if the type is integer
+    auto t = dynamic_cast<cdk::expression_node *>(node->position()->node(ax));
+    
+    t ->accept(this, lvl + 2);
+    if (!t->is_typed(cdk::TYPE_INT)) {
+      throw std::string("tensor_index must be integer expression");
+    }
+  }
+
   node->base()->accept(this, lvl + 2);
   if (!node->base()->is_typed(cdk::TYPE_TENSOR)) {
-    throw std::string("tensor_index tensor argument must be a tensor");
-  }
-  auto indices = node->position();
-  for (size_t i = 0; i < indices->size(); i++) {
-    auto index = dynamic_cast<cdk::expression_node*>(indices->node(i));
-    index->accept(this, lvl + 2);
-    if (!index->is_typed(cdk::TYPE_INT)) {
-      throw std::string("tensor_index indices must be integers");
-    }
+    throw std::string("tensor_index expression expected");
   }
   node->type(cdk::primitive_type::create(8, cdk::TYPE_DOUBLE));
 }
@@ -268,7 +273,6 @@ void udf::type_checker::do_IDExpression(cdk::binary_operation_node *const node, 
   } else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT)) {
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC)) {
-    // FIXME: revisit this
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
@@ -293,7 +297,6 @@ void udf::type_checker::do_IDTExpression(cdk::binary_operation_node *const node,
   } else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_INT)) {
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if (node->left()->is_typed(cdk::TYPE_UNSPEC) && node->right()->is_typed(cdk::TYPE_UNSPEC)) {
-    // TODO: revisit this
     node->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
@@ -341,13 +344,17 @@ void udf::type_checker::do_IDPTExpression(cdk::binary_operation_node *const node
     node->left()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
     node->right()->type(cdk::primitive_type::create(4, cdk::TYPE_INT));
   } else if (node->left()->is_typed(cdk::TYPE_TENSOR) && node->right()->is_typed(cdk::TYPE_TENSOR)) {
-    // node->type(cdk::tensor_type::create());
+    auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->right()->type())->dims();
+    node->type(cdk::tensor_type::create(dims));
   } else if (node->left()->is_typed(cdk::TYPE_TENSOR) && node->right()->is_typed(cdk::TYPE_DOUBLE)) {
-    // node->type(cdk::tensor_type::create());
+    auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->right()->type())->dims();
+    node->type(cdk::tensor_type::create(dims));
   } else if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_TENSOR)) {
-    // node->type(cdk::tensor_type::create());
+    auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->right()->type())->dims();
+    node->type(cdk::tensor_type::create(dims));
   } else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_TENSOR)) {
-    // node->type(cdk::tensor_type::create());
+    auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->right()->type())->dims();
+    node->type(cdk::tensor_type::create(dims));
   } else {
     throw std::string("wrong types in binary expression (IDPT)");
   }
@@ -622,7 +629,6 @@ void udf::type_checker::do_function_call_node(udf::function_call_node *const nod
   if (symbol == nullptr) throw std::string("symbol '" + id + "' is undeclared");
   if (!symbol->isFunction()) throw std::string("symbol '" + id + "' is not a function");
 
-  // REVIEW delete this ?
   if (symbol->is_typed(cdk::TYPE_STRUCT)) {
     // Declare return variable for passing to function call
     const std::string return_var_name = "$return_" + id;
@@ -654,7 +660,7 @@ void udf::type_checker::do_function_call_node(udf::function_call_node *const nod
 void udf::type_checker::do_function_declaration_node(udf::function_declaration_node *const node, int lvl) {
   std::string id;
 
-  // "fix" naming issues...
+  // Solve naming issues...
   if (node->identifier() == "udf")
     id = "_main";
   else if (node->identifier() == "_main")
@@ -662,7 +668,7 @@ void udf::type_checker::do_function_declaration_node(udf::function_declaration_n
   else
     id = node->identifier();
 
-  // remember symbol so that args know
+  // Remember symbol so that args know
   auto function = udf::make_symbol(false, node->qualifier(), node->type(), id, false, true, true);
 
   std::vector<std::shared_ptr<cdk::basic_type>> argtypes;
@@ -694,7 +700,7 @@ void udf::type_checker::do_function_definition_node(udf::function_definition_nod
 
   _inBlockReturnType = nullptr;
 
-  // remember symbol so that args know
+  // Remember symbol so that args know
   auto function = udf::make_symbol(false, node->qualifier(), node->type(), id, false, true);
 
   std::vector<std::shared_ptr<cdk::basic_type>> argtypes;
@@ -725,10 +731,10 @@ if (node->retval()) {
 
     node->retval()->accept(this, lvl + 2);
 
-    // function is auto: copy type of first return expression
+    // Function is auto: copy type of first return expression
     if (_function->type() == nullptr) {
       _function->set_type(node->retval()->type());
-      return; // simply set the type
+      return; // Set the type
     }
 
     if (_inBlockReturnType == nullptr) {
@@ -754,7 +760,6 @@ if (node->retval()) {
         throw std::string("wrong type for initializer (string expected)");
       }
     } else if (_function->is_typed(cdk::TYPE_POINTER)) {
-      // FIXME: trouble!!!
       int ft = 0, rt = 0;
       auto ftype = _function->type();
       while (ftype->name() == cdk::TYPE_POINTER) {
@@ -786,7 +791,7 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
   if (node->initializer() != nullptr) {
     node->initializer()->accept(this, lvl + 2);
 
-    // sanity setting: infer type from initializer
+    // Infer type from initializer
     if (node->type() == nullptr) node->type(node->initializer()->type());
 
     if (node->is_typed(cdk::TYPE_INT)) {
@@ -802,7 +807,6 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
         throw std::string("wrong type for initializer (string expected)");
       }
     } else if (node->is_typed(cdk::TYPE_POINTER)) {
-      // FIXME: trouble!!!
       if (!node->initializer()->is_typed(cdk::TYPE_POINTER)) {
         auto in = (cdk::literal_node<int> *)node->initializer();
         if (in == nullptr || in->value() != 0)
@@ -824,7 +828,7 @@ void udf::type_checker::do_variable_declaration_node(udf::variable_declaration_n
     return;
   }
 
-  // TODO: check redeclaration
+  // Redeclaration
   auto previous = _symtab.find(node->identifier());
   if (previous) {
      _symtab.replace(node->identifier(), symbol);

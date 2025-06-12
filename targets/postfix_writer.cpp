@@ -22,7 +22,6 @@ void udf::postfix_writer::do_data_node(cdk::data_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_sequence_node(cdk::sequence_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_sequence_node(" << node->lineno() << "): " << node->size() << " elements" << std::endl;
   for (size_t i = 0; i < node->size(); i++)
     node->node(i)->accept(this, lvl);
 }
@@ -30,40 +29,37 @@ void udf::postfix_writer::do_sequence_node(cdk::sequence_node * const node, int 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_double_node(cdk::double_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_double_node(" << node->lineno() << "): " << node->value() << std::endl;
   if (_inFunctionBody) {
-    _pf.DOUBLE(node->value()); // push a double
+    _pf.DOUBLE(node->value()); // Push a double
   } else {
-    _pf.SDOUBLE(node->value());    // double is on the DATA segment
+    _pf.SDOUBLE(node->value()); // Double is on the DATA segment
   }
 }
 
 void udf::postfix_writer::do_integer_node(cdk::integer_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_integer_node(" << node->lineno() << "): " << node->value() << std::endl;
   if (_inFunctionBody) {
-    _pf.INT(node->value()); // push an integer
+    _pf.INT(node->value()); // Push an integer
   } else {
-    _pf.SINT(node->value()); // integer literal is on the DATA segment
+    _pf.SINT(node->value()); // Integer literal is on the DATA segment
   }
 }
 
 void udf::postfix_writer::do_string_node(cdk::string_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_string_node(" << node->lineno() << "): '" << node->value() << "'" << std::endl;
   int lbl1;
 
-  /* generate the string */
-  _pf.RODATA(); // strings are DATA readonly
-  _pf.ALIGN(); // make sure we are aligned
-  _pf.LABEL(mklbl(lbl1 = ++_lbl)); // give the string a name
-  _pf.SSTRING(node->value()); // output string characters
+  // Generate the string
+  _pf.RODATA(); // Strings are DATA readonly
+  _pf.ALIGN(); // Make sure we are aligned
+  _pf.LABEL(mklbl(lbl1 = ++_lbl)); // Give the string a name
+  _pf.SSTRING(node->value()); // Output string characters
 
-  /* leave the address on the stack */
+  // Leave the address on the stack
   if (_function) {
-    // local variable initializer
+    // Local variable initializer
     _pf.TEXT();
     _pf.ADDR(mklbl(lbl1));
   } else {
-    // global variable initializer
+    // Global variable initializer
     _pf.DATA();
     _pf.SADDR(mklbl(lbl1));
   }
@@ -73,20 +69,17 @@ void udf::postfix_writer::do_string_node(cdk::string_node * const node, int lvl)
 
 void udf::postfix_writer::do_unary_minus_node(cdk::unary_minus_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_unary_minus_node(" << node->lineno() << ")" << std::endl;
-  node->argument()->accept(this, lvl); // determine the value
+  node->argument()->accept(this, lvl); // Determine the value
   _pf.NEG(); // 2-complement
 }
 
 void udf::postfix_writer::do_unary_plus_node(cdk::unary_plus_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_unary_plus_node(" << node->lineno() << ")" << std::endl;
-  node->argument()->accept(this, lvl); // determine the value
+  node->argument()->accept(this, lvl); // Determine the value
 }
 
 void udf::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_not_node(" << node->lineno() << ")" << std::endl;
   node->argument()->accept(this, lvl + 2);
   _pf.INT(0);
   _pf.EQ();
@@ -97,7 +90,6 @@ void udf::postfix_writer::do_not_node(cdk::not_node * const node, int lvl) {
 
 void udf::postfix_writer::do_add_node(cdk::add_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_add_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) {
     _pf.I2D();
@@ -116,14 +108,17 @@ void udf::postfix_writer::do_add_node(cdk::add_node * const node, int lvl) {
 
   if (node->type()->name() == cdk::TYPE_DOUBLE)
     _pf.DADD();
+  else if (node->type()->name() == cdk::TYPE_TENSOR) {
+    _functions_to_declare.insert("tensor_add");
+    _pf.EXTERN("tensor_add");
+    _pf.CALL("tensor_add");
+  }
   else
     _pf.ADD();
 }
 
 void udf::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_sub_node(" << node->lineno() << ")" << std::endl;
-
   node->left()->accept(this, lvl + 2);
   if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
 
@@ -137,13 +132,17 @@ void udf::postfix_writer::do_sub_node(cdk::sub_node * const node, int lvl) {
 
   if (node->type()->name() == cdk::TYPE_DOUBLE)
     _pf.DSUB();
+  else if (node->type()->name() == cdk::TYPE_TENSOR) {
+    _functions_to_declare.insert("tensor_sub");
+    _pf.EXTERN("tensor_sub");
+    _pf.CALL("tensor_sub");
+  }
   else
     _pf.SUB();
 }
 
 void udf::postfix_writer::do_mul_node(cdk::mul_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_mul_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if ((node->type()->name() == cdk::TYPE_DOUBLE || node->type()->name() == cdk::TYPE_TENSOR) && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
 
@@ -176,8 +175,6 @@ void udf::postfix_writer::do_mul_node(cdk::mul_node * const node, int lvl) {
 
 void udf::postfix_writer::do_div_node(cdk::div_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_div_node(" << node->lineno() << ")" << std::endl;
-
   node->left()->accept(this, lvl + 2);
   if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
 
@@ -187,13 +184,17 @@ void udf::postfix_writer::do_div_node(cdk::div_node * const node, int lvl) {
 
   if (node->type()->name() == cdk::TYPE_DOUBLE)
     _pf.DDIV();
+  else if (node->type()->name() == cdk::TYPE_TENSOR) {
+    _functions_to_declare.insert("tensor_div");
+    _pf.EXTERN("tensor_div");
+    _pf.CALL("tensor_div");
+  }
   else
     _pf.DIV();
 }
 
 void udf::postfix_writer::do_mod_node(cdk::mod_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_mod_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   node->right()->accept(this, lvl + 2);
   _pf.MOD();
@@ -201,7 +202,6 @@ void udf::postfix_writer::do_mod_node(cdk::mod_node * const node, int lvl) {
 
 void udf::postfix_writer::do_lt_node(cdk::lt_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_lt_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
 
@@ -213,7 +213,6 @@ void udf::postfix_writer::do_lt_node(cdk::lt_node * const node, int lvl) {
 
 void udf::postfix_writer::do_le_node(cdk::le_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_le_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
 
@@ -225,7 +224,6 @@ void udf::postfix_writer::do_le_node(cdk::le_node * const node, int lvl) {
 
 void udf::postfix_writer::do_ge_node(cdk::ge_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_ge_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
 
@@ -237,7 +235,6 @@ void udf::postfix_writer::do_ge_node(cdk::ge_node * const node, int lvl) {
 
 void udf::postfix_writer::do_gt_node(cdk::gt_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_gt_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
 
@@ -249,7 +246,6 @@ void udf::postfix_writer::do_gt_node(cdk::gt_node * const node, int lvl) {
 
 void udf::postfix_writer::do_ne_node(cdk::ne_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_ne_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
 
@@ -261,7 +257,6 @@ void udf::postfix_writer::do_ne_node(cdk::ne_node * const node, int lvl) {
 
 void udf::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_eq_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
   if (node->left()->type()->name() == cdk::TYPE_INT && node->right()->type()->name() == cdk::TYPE_DOUBLE) _pf.I2D();
 
@@ -273,8 +268,6 @@ void udf::postfix_writer::do_eq_node(cdk::eq_node * const node, int lvl) {
 
 void udf::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_and_node(" << node->lineno() << ")" << std::endl;
-
   int lbl = ++_lbl;
   node->left()->accept(this, lvl + 2);
   _pf.DUP32();
@@ -287,8 +280,6 @@ void udf::postfix_writer::do_and_node(cdk::and_node * const node, int lvl) {
 
 void udf::postfix_writer::do_or_node(cdk::or_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_or_node(" << node->lineno() << ")" << std::endl;
-
   int lbl = ++_lbl;
   node->left()->accept(this, lvl + 2);
   _pf.DUP32();
@@ -303,30 +294,30 @@ void udf::postfix_writer::do_or_node(cdk::or_node * const node, int lvl) {
 
 void udf::postfix_writer::do_tensor_capacity_node(udf::tensor_capacity_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_capacity_node(" << node->lineno() << ")" << std::endl;
-
   node->argument()->accept(this, lvl + 2);
+
+  _functions_to_declare.insert("tensor_size");
   _pf.EXTERN("tensor_size");
   _pf.CALL("tensor_size");
+  _pf.TRASH(4);
   _pf.LDFVAL32();
 }
 
 void udf::postfix_writer::do_tensor_rank_node(udf::tensor_rank_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_rank_node(" << node->lineno() << ")" << std::endl;
-
   node->argument()->accept(this, lvl + 2);
+
+  _functions_to_declare.insert("tensor_get_n_dims");
   _pf.EXTERN("tensor_get_n_dims");
   _pf.CALL("tensor_get_n_dims");
+  _pf.TRASH(4);
   _pf.LDFVAL32();
 }
 
 void udf::postfix_writer::do_tensor_dim_node(udf::tensor_dim_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_dim_node(" << node->lineno() << ")" << std::endl;
-
-  node->argument()->accept(this, lvl + 2);
   node->dimension()->accept(this, lvl + 2);
+  node->argument()->accept(this, lvl + 2);
 
   _functions_to_declare.insert("tensor_get_dim_size");
   _pf.EXTERN("tensor_get_dim_size");
@@ -337,8 +328,6 @@ void udf::postfix_writer::do_tensor_dim_node(udf::tensor_dim_node *const node, i
 
 void udf::postfix_writer::do_tensor_dims_node(udf::tensor_dims_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_dims_node(" << node->lineno() << ")" << std::endl;
-
   node->argument()->accept(this, lvl + 2);
   _functions_to_declare.insert("tensor_get_dims");
   _pf.EXTERN("tensor_get_dims");
@@ -349,8 +338,6 @@ void udf::postfix_writer::do_tensor_dims_node(udf::tensor_dims_node *const node,
 
 void udf::postfix_writer::do_tensor_index_node(udf::tensor_index_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_index_node(" << node->lineno() << ")" << std::endl;
-
   node->position()->accept(this, lvl + 2);
   node->base()->accept(this, lvl + 2);
 
@@ -362,24 +349,25 @@ void udf::postfix_writer::do_tensor_index_node(udf::tensor_index_node *const nod
 }
 
 void udf::postfix_writer::do_tensor_reshape_node(udf::tensor_reshape_node *const node, int lvl) {
+  // TODO: revisit this
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_reshape_node(" << node->lineno() << ")" << std::endl;
-
   node->tensor()->accept(this, lvl + 2);
   auto new_dims = node->arguments();
   _pf.INT(new_dims->size());
   for (size_t i = 0; i < new_dims->size(); i++) new_dims->node(i)->accept(this, lvl + 2);
+  _functions_to_declare.insert("tensor_reshape");
+  _pf.EXTERN("tensor_reshape");
   _pf.EXTERN("tensor_reshape");
   _pf.CALL("tensor_reshape");
+  // _pf.TRASH(4 + new_dims->size() * 4);
   _pf.LDFVAL32();
 }
 
 void udf::postfix_writer::do_tensor_contract_node(udf::tensor_contract_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_tensor_contract_node(" << node->lineno() << ")" << std::endl;
-
   node->right()->accept(this, lvl + 2);
   node->left()->accept(this, lvl + 2);
+
   _functions_to_declare.insert("tensor_matmul");
   _pf.EXTERN("tensor_matmul");
   _pf.CALL("tensor_matmul");
@@ -429,7 +417,6 @@ std::vector<size_t> udf::postfix_writer::tensor_dims(cdk::sequence_node *seq) {
 
 void udf::postfix_writer::do_tensor_node(udf::tensor_node *const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-
   if (!_initMemory) {
     _functions_to_declare.insert("mem_init");
     _pf.CALL("mem_init");
@@ -450,7 +437,7 @@ void udf::postfix_writer::do_tensor_node(udf::tensor_node *const node, int lvl) 
   _pf.INT(dims.size());
 
   _functions_to_declare.insert("tensor_create");
-  // _pf.EXTERN("tensor_create");
+  _pf.EXTERN("tensor_create");
   _pf.CALL("tensor_create");
   _pf.TRASH((dims.size() + 1) * 4);
   _pf.LDFVAL32();
@@ -468,8 +455,6 @@ void udf::postfix_writer::do_tensor_node(udf::tensor_node *const node, int lvl) 
 
 void udf::postfix_writer::do_address_of_node(udf::address_of_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_address_of_node(" << node->lineno() << ")" << std::endl;
-
   node->lvalue()->accept(this, lvl + 2);
 }
 
@@ -477,29 +462,23 @@ void udf::postfix_writer::do_address_of_node(udf::address_of_node * const node, 
 
 void udf::postfix_writer::do_alloc_node(udf::alloc_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_alloc_node(" << node->lineno() << ")" << std::endl;
-
   node->argument()->accept(this, lvl);
   _pf.INT(3);
   _pf.SHTL();
-  _pf.ALLOC(); // allocate
-  _pf.SP(); // put base pointer in stack
+  _pf.ALLOC(); // Allocate
+  _pf.SP(); // Put base pointer in stack
 }
 
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_variable_node(cdk::variable_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cerr << "DEBUG: postfix_writer::do_variable_node(" << node->lineno() << "): " << node->name() << std::endl;
   const std::string &id = node->name();
   auto symbol = _symtab.find(id);
   if(!symbol) {
     std::cerr << "ERROR: variable '" << id << "' not found" << std::endl;
     return;
   }
-
-  std::cout << "DEBUG: symbol found: " << symbol->name() << ", type: " << cdk::to_string(symbol->type()) << " offset: " << symbol->offset() << " global: " << (symbol->global() ? "yes" : "no") << std::endl;
-  
   if (symbol->global()) {
     _pf.ADDR(symbol->name());
   } else {
@@ -509,21 +488,17 @@ void udf::postfix_writer::do_variable_node(cdk::variable_node * const node, int 
 
 void udf::postfix_writer::do_rvalue_node(cdk::rvalue_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_rvalue_node(" << node->lineno() << ")" << std::endl;
   node->lvalue()->accept(this, lvl);
   if (node->type()->name() == cdk::TYPE_DOUBLE) {
     _pf.LDDOUBLE();
   } else {
-    // integers, pointers, strings, tensors
+    // Integers, pointers, strings, tensors
     _pf.LDINT();
   }
 }
 
 void udf::postfix_writer::do_assignment_node(cdk::assignment_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_assignment_node(" << node->lineno() << ")" << std::endl;
-
-  
   node->rvalue()->accept(this, lvl + 2);
   if (node->type()->name() == cdk::TYPE_DOUBLE) {
     if (node->rvalue()->type()->name() == cdk::TYPE_INT) _pf.I2D();
@@ -544,8 +519,6 @@ void udf::postfix_writer::do_assignment_node(cdk::assignment_node * const node, 
 
 void udf::postfix_writer::do_function_declaration_node(udf::function_declaration_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_function_declaration_node(" << node->lineno() << ")" << std::endl;
-
   if (_inFunctionBody || _inFunctionArgs) {
     std::cerr << "ERROR: cannot declare function in body or in args" << std::endl;
     return;
@@ -560,30 +533,29 @@ void udf::postfix_writer::do_function_declaration_node(udf::function_declaration
 
 void udf::postfix_writer::do_function_definition_node(udf::function_definition_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_function_definition_node(" << node->lineno() << ")" << std::endl;
   if (_inFunctionBody || _inFunctionArgs) {
     std::cerr << "ERROR: cannot define function in body or in args" << std::endl;
     return;
   }
 
-  // remember symbol so that args and body know
+  // Remember symbol so that args and body know
   _function = new_symbol();
   _functions_to_declare.erase(_function->name());
   reset_new_symbol();
 
   _currentBodyRetLabel = mklbl(++_lbl);
 
-  _offset = 8; // prepare for arguments (4: remember to account for return address)
-  _symtab.push(); // scope of args
+  _offset = 8; // Prepare for arguments (4: remember to account for return address)
+  _symtab.push(); // Scope of args
 
   if (node->arguments()->size() > 0) {
-    _inFunctionArgs = true; //FIXME
+    _inFunctionArgs = true;
     for (size_t ix = 0; ix < node->arguments()->size(); ix++) {
       cdk::basic_node *arg = node->arguments()->node(ix);
-      if (arg == nullptr) break; // this means an empty sequence of arguments
-      arg->accept(this, 0); // the function symbol is at the top of the stack
+      if (arg == nullptr) break; // This means an empty sequence of arguments
+      arg->accept(this, 0); // The function symbol is at the top of the stack
     }
-    _inFunctionArgs = false; //FIXME
+    _inFunctionArgs = false;
   }
 
   _pf.TEXT();
@@ -591,16 +563,16 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
   if (node->qualifier() == tPUBLIC) _pf.GLOBAL(_function->name(), _pf.FUNC());
   _pf.LABEL(_function->name());
 
-  // compute stack size to be reserved for local variables
+  // Compute stack size to be reserved for local variables
   frame_size_calculator lsc(_compiler, _symtab, _function);
   node->accept(&lsc, lvl);
-  _pf.ENTER(lsc.localsize()); // total stack size reserved for local variables
+  _pf.ENTER(lsc.localsize()); // Total stack size reserved for local variables
 
-  _offset = 0; // prepare for local variable
+  _offset = 0; // Prepare for local variable
 
   _inFunctionBody = true;
   os() << "        ;; before body " << std::endl;
-  node->block()->accept(this, lvl + 4); // block has its own scope
+  node->block()->accept(this, lvl + 4); // Block has its own scope
   os() << "        ;; after body " << std::endl;
   _inFunctionBody = false;
   _returnSeen = false;
@@ -609,10 +581,10 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
   _pf.LEAVE();
   _pf.RET();
 
-  _symtab.pop(); // scope of arguments
+  _symtab.pop(); // Scope of arguments
 
   if (node->identifier() == "udf") {
-    // declare external functions
+    // Declare external functions
     for (std::string s : _functions_to_declare)
       _pf.EXTERN(s);
   }
@@ -622,9 +594,7 @@ void udf::postfix_writer::do_function_definition_node(udf::function_definition_n
 
 void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_return_node(" << node->lineno() << ")" << std::endl;
-
-  // should not reach here without returning a value (if not void)
+  // Should not reach here without returning a value (if not void)
   if (_function->type()->name() != cdk::TYPE_VOID) {
     node->retval()->accept(this, lvl + 2);
 
@@ -634,7 +604,7 @@ void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl)
     } else if (_function->type()->name() == cdk::TYPE_DOUBLE) {
       if (node->retval()->type()->name() == cdk::TYPE_INT) _pf.I2D();
       _pf.STFVAL64();
-    } else if (_function->type()->name() == cdk::TYPE_STRUCT) { // FIXME
+    } else if (_function->type()->name() == cdk::TYPE_STRUCT) {
     } else {
       std::cerr << node->lineno() << ": should not happen: unknown return type" << std::endl;
     }
@@ -647,13 +617,11 @@ void udf::postfix_writer::do_return_node(udf::return_node * const node, int lvl)
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration_node * const node, int lvl) {
-  std::cout << "DEBUG: DECLARING VARIABLE " << std::endl;
   ASSERT_SAFE_EXPRESSIONS;
   auto id = node->identifier();
   std::cout << "INITIAL OFFSET: " << _offset << std::endl;
 
-  // type size?
-  int offset = 0, typesize = node->type()->size(); // in bytes
+  int offset = 0, typesize = node->type()->size(); // In bytes
   std::cout << "ARG: " << id << ", " << typesize << std::endl;
   if (_inFunctionBody) {
     std::cout << "IN BODY" << std::endl;
@@ -665,7 +633,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
     _offset += typesize;
   } else {
     std::cout << "GLOBAL!" << std::endl;
-    offset = 0; // global variable
+    offset = 0; // Global variable
   }
   std::cout << "OFFSET: " << id << ", " << offset << std::endl;
   auto symbol = new_symbol();
@@ -676,7 +644,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
   }
 
   if (_inFunctionBody) {
-    // if we are dealing with local variables, then no action is needed
+    // If we are dealing with local variables, then no action is needed
     // unless an initializer exists
     if (node->initializer()) {
       node->initializer()->accept(this, lvl);
@@ -691,9 +659,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
       } else {
         std::cerr << "cannot initialize" << std::endl;
       }
-    }
-    else if (node->is_typed(cdk::TYPE_TENSOR))
-    {
+    } else if (node->is_typed(cdk::TYPE_TENSOR)) {
       if(!_initMemory) {
         _functions_to_declare.insert("mem_init");
         _pf.CALL("mem_init");
@@ -709,8 +675,7 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
 
       auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->type())->dims();
 
-      for (int i = dims.size() - 1; i >= 0; i--)
-      {
+      for (int i = dims.size() - 1; i >= 0; i--) {
         _pf.INT(dims[i]);
       }
       _pf.INT(dims.size());
@@ -720,12 +685,10 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
       _pf.CALL("tensor_create");
       _pf.TRASH((dims.size() + 1) * 4);
       _pf.LDFVAL32();
-      _pf.ADDR("temp");
+      _pf.LOCAL(symbol->offset());
       _pf.STINT();
     }
-  }
-  else
-  {
+  } else {
     if (!_function) {
       if (node->initializer() == nullptr) {
         _pf.BSS();
@@ -786,7 +749,6 @@ void udf::postfix_writer::do_variable_declaration_node(udf::variable_declaration
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_evaluation_node(udf::evaluation_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_evaluation_node(" << node->lineno() << ")" << std::endl;
   ASSERT_SAFE_EXPRESSIONS;
   node->argument()->accept(this, lvl);
   _pf.TRASH(node->argument()->type()->size());
@@ -794,21 +756,20 @@ void udf::postfix_writer::do_evaluation_node(udf::evaluation_node * const node, 
 
 void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_write_node(" << node->lineno() << ")" << std::endl;
   for (size_t ix = 0; ix < node->arguments()->size(); ix++) {
     auto child = dynamic_cast<cdk::expression_node*>(node->arguments()->node(ix));
 
     std::shared_ptr<cdk::basic_type> etype = child->type();
-    child->accept(this, lvl); // expression to print
+    child->accept(this, lvl); // Expression to print
     _pf.ALIGN();
     if (etype->name() == cdk::TYPE_INT) {
       _functions_to_declare.insert("printi");
       _pf.CALL("printi");
-      _pf.TRASH(4); // trash int
+      _pf.TRASH(4); // Trash int
     } else if (etype->name() == cdk::TYPE_DOUBLE) {
       _functions_to_declare.insert("printd");
       _pf.CALL("printd");
-      _pf.TRASH(8); // trash double
+      _pf.TRASH(8); // Trash double
     } else if (etype->name() == cdk::TYPE_STRING) {
       _functions_to_declare.insert("prints");
       _pf.CALL("prints");
@@ -817,7 +778,7 @@ void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
       _functions_to_declare.insert("tensor_print");
       _pf.EXTERN("tensor_print");
       _pf.CALL("tensor_print");
-      _pf.TRASH(4); // trash pointer to tensor after print
+      _pf.TRASH(4); // Trash pointer to tensor after print
     } else {
       std::cerr << "cannot print expression of unknown type" << std::endl;
       return;
@@ -834,7 +795,6 @@ void udf::postfix_writer::do_write_node(udf::write_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_input_node(udf::input_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_input_node(" << node->lineno() << ")" << std::endl;
   if (_lvalueType == cdk::TYPE_DOUBLE) {
     _functions_to_declare.insert("readd");
     _pf.CALL("readd");
@@ -853,34 +813,32 @@ void udf::postfix_writer::do_input_node(udf::input_node * const node, int lvl) {
 
 void udf::postfix_writer::do_for_node(udf::for_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_for_node(" << node->lineno() << ")" << std::endl;
-
-  _forIni.push(++_lbl); // after init, before body
-  _forStep.push(++_lbl); // after intruction
-  _forEnd.push(++_lbl); // after for
+  _forIni.push(++_lbl); // After init, before body
+  _forStep.push(++_lbl); // After intruction
+  _forEnd.push(++_lbl); // After for
 
   os() << "        ;; FOR initialize" << std::endl;
-  // initialize: be careful with variable declarations:
+  // Initialize: be careful with variable declarations:
   // they are done here, but the space is occupied in the function
   _symtab.push();
-  _inForInit = true;  // remember this for local declarations
+  _inForInit = true;  // Remember this for local declarations
 
-  // initialize
+  // Initialize
   node->declaration()->accept(this, lvl + 2);
 
   os() << "        ;; FOR test" << std::endl;
-  // prepare to test
+  // Prepare to test
   _pf.ALIGN();
   _pf.LABEL(mklbl(_forIni.top()));
   node->condition()->accept(this, lvl + 2);
   _pf.JZ(mklbl(_forEnd.top()));
 
   os() << "        ;; FOR instruction" << std::endl;
-  // execute instruction
+  // Execute instruction
   node->block()->accept(this, lvl + 2);
 
   os() << "        ;; FOR increment" << std::endl;
-  // prepare to increment
+  // Prepare to increment
   _pf.ALIGN();
   _pf.LABEL(mklbl(_forStep.top()));
   node->increment()->accept(this, lvl + 2);
@@ -892,7 +850,7 @@ void udf::postfix_writer::do_for_node(udf::for_node * const node, int lvl) {
   _pf.ALIGN();
   _pf.LABEL(mklbl(_forEnd.top()));
 
-  _inForInit = false;  // remember this for local declarations
+  _inForInit = false;  // Remember this for local declarations
   _symtab.pop();
 
   _forIni.pop();
@@ -904,7 +862,6 @@ void udf::postfix_writer::do_for_node(udf::for_node * const node, int lvl) {
 
 void udf::postfix_writer::do_if_node(udf::if_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_if_node(" << node->lineno() << ")" << std::endl;
   int lbl1;
   node->condition()->accept(this, lvl);
   _pf.JZ(mklbl(lbl1 = ++_lbl));
@@ -914,7 +871,6 @@ void udf::postfix_writer::do_if_node(udf::if_node * const node, int lvl) {
 
 void udf::postfix_writer::do_if_else_node(udf::if_else_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_if_else_node(" << node->lineno() << ")" << std::endl;
   int lbl_else, lbl_end;
   node->condition()->accept(this, lvl);
   _pf.JZ(mklbl(lbl_else = lbl_end = ++_lbl));
@@ -931,7 +887,6 @@ void udf::postfix_writer::do_if_else_node(udf::if_else_node * const node, int lv
 
 void udf::postfix_writer::do_function_call_node(udf::function_call_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_function_call_node(" << node->lineno() << ")" << std::endl;
   auto symbol = _symtab.find(node->identifier());
 
   size_t argsSize = 0;
@@ -955,7 +910,7 @@ void udf::postfix_writer::do_function_call_node(udf::function_call_node * const 
   } else if (symbol->is_typed(cdk::TYPE_DOUBLE)) {
     _pf.LDFVAL64();
   } else {
-    // cannot happen!
+    // Cannot happen!
   }
 }
 
@@ -963,7 +918,6 @@ void udf::postfix_writer::do_function_call_node(udf::function_call_node * const 
 
 void udf::postfix_writer::do_index_node(udf::index_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
-  std::cout << "DEBUG: postfix_writer::do_index_node(" << node->lineno() << ")" << std::endl;
   if (node->base()) {
     node->base()->accept(this, lvl);
   } else {
@@ -976,11 +930,10 @@ void udf::postfix_writer::do_index_node(udf::index_node * const node, int lvl) {
   node->index()->accept(this, lvl);
   _pf.INT(3);
   _pf.SHTL();
-  _pf.ADD(); // add pointer and index
+  _pf.ADD(); // Add pointer and index
 }
 
 void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_block_node(" << node->lineno() << ")" << std::endl;
   _symtab.push();
   if (node->declarations()) node->declarations()->accept(this, lvl + 2);
   if (node->instructions()) node->instructions()->accept(this, lvl + 2);
@@ -990,8 +943,7 @@ void udf::postfix_writer::do_block_node(udf::block_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_nullptr_node(udf::nullptr_node * const node, int lvl) {
-  ASSERT_SAFE_EXPRESSIONS; // a pointer is a 32-bit integer
-  std::cout << "DEBUG: postfix_writer::do_nullptr_node(" << node->lineno() << ")" << std::endl;
+  ASSERT_SAFE_EXPRESSIONS; // A pointer is a 32-bit integer
   if (_inFunctionBody) {
     _pf.INT(0);
   } else {
@@ -1002,15 +954,13 @@ void udf::postfix_writer::do_nullptr_node(udf::nullptr_node * const node, int lv
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_continue_node(udf::continue_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_continue_node(" << node->lineno() << ")" << std::endl;
   if (_forIni.size() != 0) {
-    _pf.JMP(mklbl(_forStep.top())); // jump to next cycle
+    _pf.JMP(mklbl(_forStep.top())); // Jump to next cycle
   } else
     std::cerr << "ERROR: 'continue' outside 'for'" << std::endl;
 }
 
 void udf::postfix_writer::do_break_node(udf::break_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_break_node(" << node->lineno() << ")" << std::endl;
   if (_forIni.size() != 0) {
     _pf.JMP(mklbl(_forEnd.top())); // jump to for end
   } else
@@ -1020,7 +970,6 @@ void udf::postfix_writer::do_break_node(udf::break_node * const node, int lvl) {
 //---------------------------------------------------------------------------
 
 void udf::postfix_writer::do_sizeof_node(udf::sizeof_node * const node, int lvl) {
-  std::cout << "DEBUG: postfix_writer::do_sizeof_node(" << node->lineno() << ")" << std::endl;
   ASSERT_SAFE_EXPRESSIONS;
   if (node->argument()->is_typed(cdk::TYPE_TENSOR)) {
     _pf.EXTERN("tensor_size");

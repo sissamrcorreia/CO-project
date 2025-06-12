@@ -203,9 +203,7 @@ lvalue : tIDENTIFIER { $$ = new cdk::variable_node(LINE, *$1); delete $1; }
        | lvalue '[' expression ']' { $$ = new udf::index_node(LINE, new cdk::rvalue_node(LINE, $1), $3); }
        | '(' expression ')' '[' expression ']' { $$ = new udf::index_node(LINE, $2, $5); }
        | tIDENTIFIER '(' opt_expressions ')' '[' expression ']' { $$ = new udf::index_node(LINE, new udf::function_call_node(LINE, *$1, $3), $6); delete $1; }
-       | lvalue '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, new cdk::rvalue_node(LINE, $1), $4); }
-       | '(' expression ')' '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, $2, $6); }
-       | tIDENTIFIER '(' opt_expressions ')' '@' '(' opt_expressions ')' { $$ = new udf::tensor_index_node(LINE, new udf::function_call_node(LINE, *$1, $3), $7); delete $1; }
+       | expression '@' '(' expressions ')' { $$ = new udf::tensor_index_node(LINE, $1, $4); }
        ;
 
 expression : integer { $$ = $1; }
