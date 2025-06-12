@@ -146,11 +146,24 @@ void udf::type_checker::do_tensor_contract_node(udf::tensor_contract_node *const
   if (!node->left()->is_typed(cdk::TYPE_TENSOR)) {
     throw std::string("tensor_contract left argument must be a tensor");
   }
+  auto left_dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->left()->type())->dims();
+
   node->right()->accept(this, lvl + 2);
   if (!node->right()->is_typed(cdk::TYPE_TENSOR)) {
     throw std::string("tensor_contract right argument must be a tensor");
   }
-  node->type(cdk::primitive_type::create(4, cdk::TYPE_TENSOR));
+
+  auto right_dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->right()->type())->dims();
+
+  std::vector<size_t> dims;
+  for (size_t i = 0; i < left_dims.size() - 1; i++) {
+    dims.push_back(left_dims[i]);
+  }
+  for (size_t i = right_dims.size() - 1; i > 0; i--) {
+    dims.push_back(right_dims[i]);
+  }
+
+  node->type(cdk::tensor_type::create(dims));
 }
 
 void udf::type_checker::do_tensor_node(udf::tensor_node *const node, int lvl) {
@@ -291,10 +304,13 @@ void udf::type_checker::do_IDTExpression(cdk::binary_operation_node *const node,
     auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->left()->type())->dims();
     node->type(cdk::tensor_type::create(dims));
   } else if (node->left()->is_typed(cdk::TYPE_DOUBLE) && node->right()->is_typed(cdk::TYPE_TENSOR)) {
+    auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->right()->type())->dims();
+    node->type(cdk::tensor_type::create(dims));
+  } else if (node->left()->is_typed(cdk::TYPE_TENSOR) && node->right()->is_typed(cdk::TYPE_INT)) {
     auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->left()->type())->dims();
     node->type(cdk::tensor_type::create(dims));
   } else if (node->left()->is_typed(cdk::TYPE_INT) && node->right()->is_typed(cdk::TYPE_TENSOR)) {
-    auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->left()->type())->dims();
+    auto dims = std::dynamic_pointer_cast<cdk::tensor_type>(node->right()->type())->dims();
     node->type(cdk::tensor_type::create(dims));
   } else {
     throw std::string("wrong types in binary expression (IDT)");

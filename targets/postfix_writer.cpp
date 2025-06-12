@@ -145,29 +145,33 @@ void udf::postfix_writer::do_mul_node(cdk::mul_node * const node, int lvl) {
   ASSERT_SAFE_EXPRESSIONS;
   std::cout << "DEBUG: postfix_writer::do_mul_node(" << node->lineno() << ")" << std::endl;
   node->left()->accept(this, lvl + 2);
-  if (node->type()->name() == cdk::TYPE_DOUBLE && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+  if ((node->type()->name() == cdk::TYPE_DOUBLE || node->type()->name() == cdk::TYPE_TENSOR) && node->left()->type()->name() == cdk::TYPE_INT) _pf.I2D();
 
   node->right()->accept(this, lvl + 2);
-  if (node->type()->name() == cdk::TYPE_DOUBLE && node->right()->type()->name() == cdk::TYPE_INT) _pf.I2D();
+  if ((node->type()->name() == cdk::TYPE_DOUBLE || node->type()->name() == cdk::TYPE_TENSOR) && node->right()->type()->name() == cdk::TYPE_INT) _pf.I2D();
 
-  // if (node->is_typed(cdk::TYPE_TENSOR)) {
-  //   if (node->right()->is_typed(cdk::TYPE_DOUBLE)) {
-  //     _pf.EXTERN("tensor_mul_scalar");
-  //     _pf.CALL("tensor_mul_scalar");
-  //     _pf.LDFVAL32();
-  //   } else {
-  //     _pf.EXTERN("tensor_mul");
-  //     _pf.CALL("tensor_mul");
-  //     _pf.LDFVAL32();
-  //   }
-  // } else {
-  //   _pf.MUL(); // Integer multiplication
-  // }
-
-  if (node->type()->name() == cdk::TYPE_DOUBLE)
+  if (node->type()->name() == cdk::TYPE_DOUBLE) {
     _pf.DMUL();
-  else
+  } else if (node->left()->type()->name() == cdk::TYPE_TENSOR && node->right()->type()->name() == cdk::TYPE_TENSOR) {
+    _pf.SWAP32();
+    _functions_to_declare.insert("tensor_mul");
+    _pf.EXTERN("tensor_mul");
+    _pf.CALL("tensor_mul");
+    _pf.TRASH(8);
+    _pf.LDFVAL32();
+  } else if (node->left()->type()->name() == cdk::TYPE_TENSOR && (node->right()->type()->name() == cdk::TYPE_INT || node->right()->type()->name() == cdk::TYPE_DOUBLE)) {
+    _functions_to_declare.insert("tensor_mul_scalar");
+    _pf.EXTERN("tensor_mul_scalar");
+    _pf.CALL("tensor_mul_scalar");
+  } else if ((node->left()->type()->name() == cdk::TYPE_INT || node->left()->type()->name() == cdk::TYPE_DOUBLE) && node->right()->type()->name() == cdk::TYPE_TENSOR) {
+    _functions_to_declare.insert("tensor_mul_scalar");
+    _pf.EXTERN("tensor_mul_scalar");
+    _pf.CALL("tensor_mul_scalar");
+    _pf.TRASH(12);
+    _pf.LDFVAL32();
+  } else {
     _pf.MUL();
+  }
 }
 
 void udf::postfix_writer::do_div_node(cdk::div_node * const node, int lvl) {
@@ -374,10 +378,12 @@ void udf::postfix_writer::do_tensor_contract_node(udf::tensor_contract_node *con
   ASSERT_SAFE_EXPRESSIONS;
   std::cout << "DEBUG: postfix_writer::do_tensor_contract_node(" << node->lineno() << ")" << std::endl;
 
-  node->left()->accept(this, lvl + 2);
   node->right()->accept(this, lvl + 2);
+  node->left()->accept(this, lvl + 2);
+  _functions_to_declare.insert("tensor_matmul");
   _pf.EXTERN("tensor_matmul");
   _pf.CALL("tensor_matmul");
+  _pf.TRASH(8);
   _pf.LDFVAL32();
 }
 
