@@ -45,8 +45,8 @@ namespace udf {
     }
 
   protected:
-    void emit_tensor_elements_with_offset(cdk::sequence_node *seq, int &offset, int lvl);
-    std::vector<size_t> tensor_dims(cdk::sequence_node *seq) ;
+    void tensor_elements(cdk::sequence_node *seq, int &offset, int lvl);
+    std::vector<size_t> tensor_dimensions(cdk::sequence_node *seq) ;
   
   private:
     /** Method used to generate sequential labels. */
